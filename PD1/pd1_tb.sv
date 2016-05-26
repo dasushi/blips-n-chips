@@ -94,10 +94,10 @@ module tb_SumArray;
 		#10 din <= 32'h0000eeee;
 		#10 din <= 32'ha0a0e0e0;
 		#10 read <= 1; size <= 0;
-		#20 $stop; //$finish if using iverilog
+		#20 $finish; //$finish if using iverilog
     end
 
-    initial $dumpvars(0, tb_BubbleSort); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_SumArray); // for iverilog+gtkwave
 	
 endmodule
 
@@ -294,7 +294,7 @@ module tb_BubbleSort_3Byte_offset;
 		#40 size <= 2;
 		#80 size <= 3;
 		#160
-		#10 $finish; //$finish if using iverilog
+		#10 $stop; //$finish if using iverilog
     end
 
     initial $dumpvars(0, tb_BubbleSort_3Byte_offset); // for iverilog+gtkwave
