@@ -31,6 +31,10 @@ module memory(input clk,
 			set_mem_index(addr); 
 			word_counter = 4'h0;
 			read_data(mem_index, byte_offset, 4'd0);
+		end else begin
+			if(~rd_wr) begin
+				data_out = 32'bx;
+			end
 		end
 	end
 
