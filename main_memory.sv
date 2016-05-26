@@ -9,7 +9,8 @@ module memory(input clk,
     parameter depth = 2**20; // =1 MB
     
 	reg[0:31] mem [depth-1: 0];
-	logic [4:0] word_counter; //Rolling bit counter to detect offest/ which word is next to be read for multi word reads
+	logic [3:0] word_counter; //Rolling bit counter to detect offest/ which word is next to be read for multi word reads
+	logic [4:0] next_word_counter;
 	logic [1:0] byte_offset;
 	logic [31:0] mem_index; // Offset address for next block of bytes in multi word reads
 	logic [31:0] base_address; // corrected address removes the 8002xxxx from MIPS compiled hexadecimal
@@ -23,10 +24,14 @@ module memory(input clk,
 		set_mem_index(addr);
 		base_address = 32'b0;
 	end
-
-	always @ (addr) begin
-		byte_offset = addr[1:0];
-		set_mem_index(addr); 
+	
+	always @ (enable, access_size, addr, rd_wr) begin
+		if(enable && rd_wr) begin
+			byte_offset = addr[1:0];
+			set_mem_index(addr); 
+			word_counter = 4'h0;
+			read_data(mem_index, byte_offset, 4'd0);
+		end
 	end
 
 	task set_mem_index(input [31:0] address);
@@ -39,21 +44,23 @@ module memory(input clk,
 	
 	always @ (posedge clk)
 	begin : READ
+
 		if(enable && rd_wr) begin
 				// Read operations
 				case(access_size)
 					2'b00 : begin	// 4 Byte Read (Word)
-						read_data(byte_offset);
+						read_data(mem_index, byte_offset, 4'h0);
+						word_counter = 4'h0;
 					end
 					2'b01 : begin	// 16 bytes (4 Words) 
 						busy = 1;
-
-						read_data(byte_offset);
-						mem_index = mem_index + 1;
+						
+						read_data(mem_index, byte_offset, word_counter + 5'd1);
 						word_counter = word_counter + 5'd1;
+
 						// reset word counter if completed read
-						if(word_counter == 5'd4) begin
-							word_counter = 5'b0;
+						if(word_counter == 4'h3) begin
+							word_counter = 4'h0;
 							busy = 0;
 							set_mem_index(addr);
 						end
@@ -61,14 +68,12 @@ module memory(input clk,
 					2'b10: begin	// 32 Bytes (8 Words)
 						busy = 1;
 
-						read_data(byte_offset);
-
-						mem_index = mem_index + 1;
-
+						read_data(mem_index, byte_offset, word_counter + 5'd1);
 						word_counter = word_counter + 5'd1;
+
 						// reset word counter if completed read
-						if(word_counter == 5'd8) begin
-							word_counter = 5'b0;
+						if(word_counter == 4'h7) begin
+							word_counter = 4'h0;
 							busy = 0;
 							set_mem_index(addr);
 						end
@@ -76,14 +81,12 @@ module memory(input clk,
 					2'b11: begin
 						// 64 Bytes (16 Words)
 						busy = 1;
-
-						read_data(byte_offset);
-
-						mem_index = mem_index + 1;
+					    read_data(mem_index, byte_offset, word_counter + 5'd1);
 						word_counter = word_counter + 5'd1;
+
 						// reset word counter if completed read
-						if(word_counter == 5'd16) begin
-							word_counter = 5'b0;
+						if(word_counter == 4'hf) begin
+							word_counter = 4'h0;
 							busy = 0;
 							set_mem_index(addr);
 						end
@@ -100,20 +103,20 @@ module memory(input clk,
 	end
 	
 
-	task read_data(input logic[1:0] byte_offset);
+	task read_data(input logic [31:0] address , input logic[1:0] byte_offset, logic[3:0] word_counter);
 	begin
 		case(byte_offset)
 			2'h0: begin
-				data_out = mem[mem_index];
+				data_out = mem[address + word_counter];
 			end
 			2'h1: begin
-				data_out = {mem[mem_index][8:31],  mem[mem_index + 1][0:7]};
+				data_out = {mem[address + word_counter][8:31],  mem[address + word_counter + 1][0:7]};
 			end
 			2'h2: begin
-				data_out = {mem[mem_index][16:31],  mem[mem_index+1][0:15]};
+				data_out = {mem[address + word_counter][16:31],  mem[address + word_counter + 1][0:15]};
 			end
 			2'h3: begin
-				data_out = {mem[mem_index][24:31],  mem[mem_index+1][0:23]};
+				data_out = {mem[address + word_counter][24:31],  mem[address + word_counter + 1][0:23]};
 			end
 		endcase
 	end
@@ -126,17 +129,17 @@ module memory(input clk,
 			//Default Word write
 			mem[mem_index] = data_in;
 		end
-		2'h1: begin
-			mem[mem_index] = {mem[mem_index][24:31], data_in[31:8]};
-			mem[mem_index + 1][24:31] = data_in[7:0];
+		2'h1: begin // Fills 1,2,3 + 4
+			mem[mem_index] = {mem[mem_index][0:7],data_in[31:8]};
+			mem[mem_index + 1] = {data_in[7:0], mem[mem_index][8:31]};
 		end
-		2'h2: begin
-			mem[mem_index] = {mem[mem_index][15:31], data_in[31:16]};
-			mem[mem_index + 1][16:31] = data_in[15:0];
+		2'h2: begin	// Fills 2,3, + 4,5
+			mem[mem_index] = {mem[mem_index][0:15],data_in[31:16]};
+			mem[mem_index + 1] = {data_in[15:0], mem[mem_index][16:31]};
 		end
-		2'h3: begin
-			mem[mem_index] = {mem[mem_index][0:7],data_in[31:24]};
-			mem[mem_index + 1] = {mem[mem_index][8:31], data_in[23:0]};
+		2'h3: begin // Fills 3 + 4,5,6
+			mem[mem_index] = {mem[mem_index][0:23],data_in[31:24]};
+			mem[mem_index + 1] = {data_in[23:0], mem[mem_index][24:31]};
 		end
 		endcase
 	end
