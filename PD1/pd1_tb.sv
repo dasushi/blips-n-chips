@@ -90,11 +90,8 @@ module tb_SumArray;
 		#40 size <= 2;
 		#80 size <= 3;
 		#160 read <= 0; size <= 1; din <= 32'haaaaeeee;
-		#10 din <= 32'haaaa0000;
-		#10 din <= 32'h0000eeee;
-		#10 din <= 32'ha0a0e0e0;
-		#10 read <= 1; size <= 0;
-		#20 $finish; //$finish if using iverilog
+		#10 read <= 1; size <= 0; din <= 32'h00000000; addr <= addr + 4;
+		#10 $finish; //$finish if using iverilog
     end
 
     initial $dumpvars(0, tb_SumArray); // for iverilog+gtkwave
