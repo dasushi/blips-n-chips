@@ -65,7 +65,8 @@ module tb_BubbleSort;
 endmodule
 
 /* tb_SumArray
-* Loads SumArray.x and tests reads of multiple words.
+* Loads SumArray.x and tests reads and writes of multiple words. 
+* NOTE: SumArray.x must be present!
 */
 module tb_SumArray;
 	logic clk, read, busy, en;
@@ -89,8 +90,8 @@ module tb_SumArray;
 		#10 size <= 1;
 		#40 size <= 2;
 		#80 size <= 3;
-		#160 read <= 0; size <= 1; din <= 32'haaaaeeee;
-		#10 read <= 1; size <= 0; din <= 32'h00000000; addr <= addr + 4;
+		#160 read <= 0; size <= 1; din <= 32'haaaaeeee; //write
+		#10 read <= 1; size <= 0; din <= 32'h00000000; addr <= addr + 4; //clear write and back to read
 		#10 $finish; //$finish if using iverilog
     end
 
