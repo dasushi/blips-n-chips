@@ -1,0 +1,91 @@
+Mikes-MacBook-Pro:PD1 mikemagliocchi$ vvp main_memory  -lxt2
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(BubbleSort.x): Not enough words in the file for the requested range [0:1048575].
+LXT2 info: dumpfile dump.lx2 opened for output.
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(BubbleSort.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(BubbleSort.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(BubbleSort.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SimpleAdd.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SimpleAdd.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SimpleAdd.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SimpleAdd.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SumArray.x): Not enough words in the file for the requested range [0:1048575].
+time   0, addr 80020000, data xxxxxxxx, busy 0
+time  10, addr 80020000, data 27bdffc8, busy 0
+time  30, addr 80020000, data afbe0034, busy 1
+time  40, addr 80020000, data 03a0f021, busy 1
+time  50, addr 80020000, data afc00000, busy 0
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 60 ticks.
+> cont
+** Continue **
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 60 ticks.
+> cont
+** Continue **
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 60 ticks.
+> cont
+** Continue **
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 60 ticks.
+> cont
+** Continue **
+time  60, addr 80020000, data 27bdffc8, busy 1
+time  70, addr 80020000, data afbe0034, busy 1
+time  80, addr 80020000, data 03a0f021, busy 1
+time  90, addr 80020000, data afc00000, busy 1
+time 100, addr 80020000, data afc00004, busy 1
+time 110, addr 80020000, data afc00000, busy 1
+time 120, addr 80020000, data 08008010, busy 1
+time 130, addr 80020000, data 00000000, busy 0
+time 140, addr 80020000, data 27bdffc8, busy 1
+time 150, addr 80020000, data afbe0034, busy 1
+time 160, addr 80020000, data 03a0f021, busy 1
+time 170, addr 80020000, data afc00000, busy 1
+time 180, addr 80020000, data afc00004, busy 1
+time 190, addr 80020000, data afc00000, busy 1
+time 200, addr 80020000, data 08008010, busy 1
+time 210, addr 80020000, data 00000000, busy 1
+time 220, addr 80020000, data 8fc20000, busy 1
+time 230, addr 80020000, data 00021080, busy 1
+time 240, addr 80020000, data 03c21021, busy 1
+time 250, addr 80020000, data 8fc30000, busy 1
+time 260, addr 80020000, data ac430008, busy 1
+time 270, addr 80020000, data 8fc20000, busy 1
+time 280, addr 80020000, data 24420001, busy 1
+time 290, addr 80020000, data afc20000, busy 0
+time 300, addr 80020000, data xxxxxxxx, busy 1
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 310 ticks.
+> cont
+** Continue **
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 310 ticks.
+> cont
+** Continue **
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 310 ticks.
+> cont
+** Continue **
+** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 310 ticks.
+> cont
+** Continue **
+time 310, addr 80020004, data afbe0034, busy 1
