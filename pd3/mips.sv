@@ -151,11 +151,11 @@ module mips(input clk, reset,
 					//I: GPR[31]← PC + 8
 					//I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
 					// 000011 instr_index [25:0]
+						//set GPR31
 						wr_sel <= 5'h1f;
-						wr_reg <= pc + 8; //{pc[31:28], instr_index[25:0], 2'b00};
-						rs_sel = instr_in[20:16];
-						alu_op <= 5'b10000;
-						link_en <= 1'b1;
+						wr_reg <= pc + 8; //increment by 8
+						alu_op <= 5'b10000; //same op as branch
+						link_en <= 1'b1; //indicate to calculate link address
 						alu_en <= 1'b1;
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
@@ -380,8 +380,9 @@ module mips(input clk, reset,
 							end
 						end
 						5'b10000 : begin //BRANCH OFFSET
-							//Sign Extend should always be '1' don't explicitally check
-							if(instr_reg[15]) begin
+							if(link_en) begin
+								pc <= {pc[31:28], instr_reg[25:0], 2'b00};
+							end else if(instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
 								pc <= pc + {12'hfff, 2'b11, instr_reg[15:0], 2'b00};
 							end else begin
 								pc <= pc + {12'h000, 2'b00, binstr_reg[15:0], 2'b00};
@@ -391,7 +392,9 @@ module mips(input clk, reset,
 				end
 				alu_en <= 1'b0;
 				mul_en <= 1'b0;
-				pc <= pc + 4;//increment PC after done with instr_in
+				if(~alu_ops[4]) begin
+					pc <= pc + 4;//increment PC after done with instr_in
+				end
 				instr_counter <= instr_counter << 1;
 			end
 			5'b01000 : begin //ME
