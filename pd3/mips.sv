@@ -322,7 +322,6 @@ module mips(input clk, reset,
 								//SLL
 								// 000000 00000 rt [20:16] rd [15:11] sa [10:6] 000000
 								//rd <- rt << sa
-								rd_sel = instr_in[10:6];
 								wr_sel = instr_in[15:11];
 								rs_sel <= instr_in[20:16];
 								wb_en <= 1'b1;
@@ -331,9 +330,9 @@ module mips(input clk, reset,
 								mem_en <= 1'b0;
 							end
 						endcase
-					b'011100 : begin	//SPECIAL2
+					6b'011100 : begin	//SPECIAL2
 						case(instr_in[5:0])
-							b'000010 : begin
+							6b'000010 : begin
 								//MUL
 								// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
 								//rd <- rs * rt;
@@ -358,8 +357,8 @@ module mips(input clk, reset,
 				if(alu_en == 1'b1) begin
 					case(alu_op)
 						5'b01000: begin //SLL
-							alu_out <= rs << rd;
-							wr_reg <= rs << rd;
+							alu_out <= rs << instr_reg[10:6];
+							wr_reg <= rs << instr_reg[10:6];
 						end
 						5'b00100: begin //MUL
 							alu_out <= rs * rd;
