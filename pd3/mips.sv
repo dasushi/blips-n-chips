@@ -200,16 +200,30 @@ module mips(input clk, reset,
 						mem_en <= 1'b0;
 					end
 					6'b001010: begin
-					//SLTI set on less than immediate
-					// 001010 rs [26:21] rt [20:16] immediate [15:0]
-					// rt <- (rs < immediate)
-					//if GPR[rs] < sign_extend(immediate)
-					//then GPR[rt] ← 0GPRLEN-1|| 1
-					//else
-					//GPR[rt] ← 0GPRLEN
-					//endif
+						//SLTI set on less than immediate
+						// 001010 rs [26:21] rt [20:16] immediate [15:0]
+						// rt <- (rs < immediate)
+						//if GPR[rs] < sign_extend(immediate)
+						//then GPR[rt] ← 0GPRLEN-1|| 1
+						//else
+						//GPR[rt] ← 0GPRLEN
+						//endif
+						rd_sel = instr_in[26:21];
 						rs_sel = instr_in[20:16];
-						wr_reg <= {16'b0, instr_in[15:0]};
+						
+						if(instr_in[15]) begin:
+							if(rd < {16'hffff, instr_in[15:0]}) begin:
+								rs <= 32'b1;
+							end else begin:
+								rs <= 32'b0;
+							end	
+						end else begin:
+							if(rd < {16'h0000, instr_in[15:0]}) begin:
+								rs <= 32'b1;
+							end else begin:
+								rs <= 32'b0;
+							end	
+						end
 						wr_sel = instr_in[25:21];
 						rd_sel <= instr_in[15:11];
 						sign_extend_en <= 1'b1;
@@ -251,6 +265,7 @@ module mips(input clk, reset,
 								wb_en  <= 1'b1;
 								alu_op <= 5'b00001;
 								mem_en <= 1'b0;
+								sign_extend_en <= 1'b0;
 							end
 							6'b100011 : begin //SUBU
 								//SUBU sub unsigned
@@ -261,6 +276,7 @@ module mips(input clk, reset,
 								rd_sel <= instr_in[20:16]; //op1
 								alu_en <= 1'b1;
 								alu_op <= 5'b00010;
+								sign_extend_en <= 1'b0;
 								wb_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
