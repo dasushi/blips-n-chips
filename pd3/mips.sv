@@ -344,8 +344,8 @@ module mips(input clk, reset,
 				if(alu_en == 1'b1) begin
 					case(alu_op)
 						5'b01000: begin //SLL
-							alu_out <= rd << rs;
-							wr_reg <= rd << rs;
+							alu_out <= rs << rd;
+							wr_reg <= rs << rd;
 						end
 						5'b00100: begin //MUL
 							alu_out <= rs * rd;
