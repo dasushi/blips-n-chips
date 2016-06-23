@@ -6,13 +6,13 @@ module mips(input clk, reset,
     parameter [31:0] sp_init = 32'h80120000; 
 	parameter [31:0] ra_init = 32'h00000000;
     
-	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en;
+	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en, mul_en;
 	logic [4:0]  instr_counter,	//Rolling bit counter to detect which stage the instruction is in
 				 wr_sel, rd_sel, rs_sel;
 	logic [31:0] pc; 			// program counter
 	logic [31:0] instr_reg, 	// current instruction register
 				 //mem_reg, 		// memory data register (mdr/mbr)
-				 rt, 			// register output 1
+				 //rt, 			// register output 1
 				 rs, 			// register output 2
 				 rd, 			// destination register
 				 //alu_1, 		// alu input 1
@@ -35,6 +35,7 @@ module mips(input clk, reset,
 		alu_en		<= 1'b0;
 		wb_en		<= 1'b0;
 		mem_en 		<= 1'b0;
+		mul_en 		<= 1'b0;
 		instr_counter <= 5'b00001;
 		instr_reg	<= 32'h0;
 		//mem_reg	<= 32'h0;
@@ -72,6 +73,7 @@ module mips(input clk, reset,
 				data_rw_en  <= 1'b1;
 				alu_en		<= 1'b0;
 				wb_en		<= 1'b0;
+				mul_en 		<= 1'b0;
 				mem_en 		<= 1'b0;
 				wr_sel 		<= 4'h0;
 				rd_sel 		<= 4'h0;
@@ -125,6 +127,95 @@ module mips(input clk, reset,
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
 					end
+					
+					6'b000010: begin
+					//J
+					// 000010 instr_index [25:0]
+					// PC <- 
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					6'b000011: begin
+					//JAL
+					// 000011 instr_index [25:0]
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					6'b011100: begin
+					//MUL
+					// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
+					//rd <- rs * rt;
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					6'b000100: begin
+					//BEQ
+					// 000100 rs [25:21] rt [20:16] offset [15:0]
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					6'b001001: begin
+					//BNE
+					// 000101 rs [25:21] rt [20:16] offset [15:0]
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					6'b001010: begin
+					//SLTI set on less than immediate
+					// 001010 rs [26:21] rt [20:16] immediate [15:0]
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					6'b001111: begin 
+					//LUI load upper immediate
+					// 001111 00000 rt [20:16] immediate [15:0]
+					// rt <= immediate || 0000 0000 0000 0000
+						rs_sel = instr_in[20:16];
+						wr_sel = instr_in[25:21];
+						rd_sel <= instr_in[15:11];
+						mul_en <= 1'b1;
+						alu_en <= 1'b1;
+						wb_en <= 1'b0;
+						mem_en <= 1'b1;
+					end
+					
+					//not needed
+					//SB store byte
+					// 101000 base [25:21] rt [20:16] offset [15:0]
+					// memory[base+offset] <- rt
+					//LBU load byte unsigned
+					// 100100 base [25:21] rt [20:16] offset [15:0]
+					// rt <- memory[base+offset]
 					6'b000000 : begin
 						case(instr_in[5:0]) 
 							6'b100001 : begin //ADDU
@@ -138,6 +229,7 @@ module mips(input clk, reset,
 								//alu_2 = rt;
 								alu_en <= 1'b1;
 								wb_en  <= 1'b1;
+								mul_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
 							6'b001000 : begin
@@ -148,6 +240,7 @@ module mips(input clk, reset,
 								pc = rs;
 								wb_en <= 1'b0;
 								alu_en <= 1'b0;
+								mul_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
 							6'b001010 : begin
@@ -159,6 +252,7 @@ module mips(input clk, reset,
 								wr_reg <= {16'h0, instr_in[15:0]};
 								wb_en <= 1'b1;
 								alu_en <= 1'b0;
+								mul_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
 							6'b000101 : begin
@@ -171,6 +265,7 @@ module mips(input clk, reset,
 								wr_reg = rs;
 								wb_en <= 1'b1;
 								alu_en <= 1'b0;
+								mul_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
 							6'b000000 : begin
@@ -178,40 +273,25 @@ module mips(input clk, reset,
 								//not an op, actually SLL r0, r0, 0 (pg 226) do we need to actually implement this way?
 								//[31:26]: 000000 & SLL [5:0]=000000
 								//r0 <= r0 << 1'b0;
+								//SLL
+								// 000000 00000 rt [20:16] rd [16:11] sa [10:6] 000000
+								//rd <- rt << sa
 								wb_en <= 1'b0;
 								alu_en <= 1'b0;
+								mul_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
-							//SLL
-							// 000000 00000 rt [20:16] rd [16:11] sa [10:6] 000000
-							//rd <- rt << sa
-							//BEQ
-							// 000100 rs [25:21] rt [20:16] offset [15:0]
-							//BNE
-							// 000101 rs [25:21] rt [20:16] offset [15:0]
-							//SLTI set on less than immediate
-							// 001010 rs [26:21] rt [20:16] immediate [15:0]
-							//J
-							// 000010 instr_index [25:0]
-							//JAL
-							// 000011 instr_index [25:0]
-							//MUL
-							// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
-							//JR
-							// 000000 rs [25:21] 00 0000 0000 hint [10:6] 001000 (JR)
-							//pc <- rs
+							
 							//SUBU sub unsigned
 							// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
 							// rd <- rs - rt
-							//LUI load upper immediate
-							// 001111 00000 rt [20:16] immediate [15:0]
-							// rt <= immediate || 0000 0000 0000 0000
-							//LBU load byte unsigned
-							// 100100 base [25:21] rt [20:16] offset [15:0]
-							// rt <- memory[base+offset]
-							//SB store byte
-							// 101000 base [25:21] rt [20:16] offset [15:0]
-							// memory[base+offset] <- rt
+							rs_sel = instr_in[20:16];
+							wr_sel = instr_in[25:21];
+							rd_sel <= instr_in[15:11];
+							alu_en <= 1'b1;
+							mul_en <= 1'b1;
+							wb_en <= 1'b0;
+							mem_en <= 1'b1;
 						endcase
 					end
 				endcase
@@ -231,12 +311,16 @@ module mips(input clk, reset,
 							alu_out <= rs + { 16'h0000, instr_reg[15:0]};
 							wr_reg <= rs + { 16'h0000, instr_reg[15:0]};
 						end
+					end else if (mul_en) begin
+						alu_out <= rs * rd;
+						wr_reg <= rs * rd;
 					end else begin
 						alu_out <= rs + rd;
 						wr_reg <= rs +rd;
 					end
 				end
 				alu_en <= 1'b0;
+				mul_en <= 1'b0;
 				pc <= pc + 4;//increment PC after done with instr_in
 				instr_counter <= instr_counter << 1;
 			end
