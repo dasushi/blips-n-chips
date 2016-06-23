@@ -127,7 +127,7 @@ module mips(input clk, reset,
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
 					end
-					
+			
 					6'b000010: begin
 					//J
 					// 000010 instr_index [25:0]
@@ -151,17 +151,35 @@ module mips(input clk, reset,
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
 					end
-					6'b011100: begin
-					//MUL
-					// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
-					//rd <- rs * rt;
-						rs_sel = instr_in[20:16];
-						wr_sel = instr_in[25:21];
-						rd_sel <= instr_in[15:11];
-						mul_en <= 1'b1;
-						alu_en <= 1'b1;
-						wb_en <= 1'b0;
-						mem_en <= 1'b1;
+					6'b000100 : begin
+						//BEQ
+						//  rs [25:21] rt [20:16] offset [15:0]
+						//I: target_offset ← sign_extend(offset || 02) condition ← (GPR[rs] = GPR[rt])
+						//I+1: if condition then
+						//		PC ← PC + target_offset
+						//	 endif
+						rs_sel = instr_in[25:21];
+						rd_sel = instr_in[20:16];
+						if rs == rd begin
+							alu_en = 1'b1;
+							sign_extend = 1'b1;
+						end else begin
+							alu_en = 1'b0;
+							sign_extend = 1'b0;
+						end
+					end
+					6'b000101: begin
+						//BNE
+						// 000101 rs [25:21] rt [20:16] offset [15:0]
+						rs_sel = instr_in[25:21];
+						rd_sel = instr_in[20:16];
+						if rs == rd begin
+							alu_en = 1'b0;
+							sign_extend = 1'b0;
+						end else begin
+							alu_en = 1'b1;
+							sign_extend = 1'b1;
+						end
 					end
 					6'b000100: begin
 					//BEQ
@@ -216,7 +234,7 @@ module mips(input clk, reset,
 					//LBU load byte unsigned
 					// 100100 base [25:21] rt [20:16] offset [15:0]
 					// rt <- memory[base+offset]
-					6'b000000 : begin
+					6'b000000 : begin  //SPECIAL
 						case(instr_in[5:0]) 
 							6'b100001 : begin //ADDU
 								//ADDU rt, rd, rs
@@ -281,17 +299,33 @@ module mips(input clk, reset,
 								mul_en <= 1'b1;
 								mem_en <= 1'b0;
 							end
-							
-							//SUBU sub unsigned
-							// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
-							// rd <- rs - rt
-							rs_sel = instr_in[20:16];
-							wr_sel = instr_in[25:21];
-							rd_sel <= instr_in[15:11];
-							alu_en <= 1'b1;
-							mul_en <= 1'b1;
-							wb_en <= 1'b0;
-							mem_en <= 1'b1;
+							6'b100011 : begin
+								//SUBU sub unsigned
+								// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
+								// rd <- rs - rt
+								rs_sel = instr_in[20:16];
+								wr_sel = instr_in[25:21];
+								rd_sel <= instr_in[15:11];
+								alu_en <= 1'b1;
+								mul_en <= 1'b1;
+								wb_en <= 1'b0;
+								mem_en <= 1'b1;
+							end
+						endcase
+					b'011100 : begin	//SPECIAL2
+						case(instr_in[5:0])
+							b'000010 : begin
+								//MUL
+								// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
+								//rd <- rs * rt;
+								rs_sel = instr_in[20:16];
+								wr_sel = instr_in[25:21];
+								rd_sel <= instr_in[15:11];
+								mul_en <= 1'b1;
+								alu_en <= 1'b1;
+								wb_en <= 1'b0;
+								mem_en <= 1'b1;
+							end
 						endcase
 					end
 				endcase
