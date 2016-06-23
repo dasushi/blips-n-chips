@@ -201,36 +201,33 @@ module mips(input clk, reset,
 					end
 					6'b001010: begin
 						//SLTI set on less than immediate
-						// 001010 rs [26:21] rt [20:16] immediate [15:0]
+						// 001010 rs [25:21] rt [20:16] immediate [15:0]
 						// rt <- (rs < immediate)
 						//if GPR[rs] < sign_extend(immediate)
 						//then GPR[rt] ← 0GPRLEN-1|| 1
 						//else
 						//GPR[rt] ← 0GPRLEN
 						//endif
-						rd_sel = instr_in[26:21];
-						rs_sel = instr_in[20:16];
+						rs_sel = instr_in[25:21];
+						wr_sel = instr_in[20:16];
 						
 						if(instr_in[15]) begin:
-							if(rd < {16'hffff, instr_in[15:0]}) begin:
-								rs <= 32'b1;
+							if(rs < {16'hffff, instr_in[15:0]}) begin:
+								wr_reg <= 32'b1;
 							end else begin:
-								rs <= 32'b0;
+								wr_reg <= 32'b0;
 							end	
 						end else begin:
-							if(rd < {16'h0000, instr_in[15:0]}) begin:
-								rs <= 32'b1;
+							if(rs < {16'h0000, instr_in[15:0]}) begin:
+								wr_reg <= 32'b1;
 							end else begin:
-								rs <= 32'b0;
+								wr_reg <= 32'b0;
 							end	
 						end
-						wr_sel = instr_in[25:21];
-						rd_sel <= instr_in[15:11];
-						sign_extend_en <= 1'b1;
-						alu_op <= 5'b00001;
-						alu_en <= 1'b1;
-						wb_en <= 1'b0;
-						mem_en <= 1'b1;
+						sign_extend_en <= 1'b0;
+						alu_en <= 1'b0;
+						wb_en <= 1'b1;
+						mem_en <= 1'b0;
 					end
 					6'b001111: begin 
 					//LUI load upper immediate
