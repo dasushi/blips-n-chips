@@ -366,11 +366,9 @@ module mips(input clk, reset,
 						5'b10000 : begin //BRANCH OFFSET
 							//Sign Extend should always be '1' don't explicitally check
 							if(instr_reg[15]) begin
-								alu_out <= pc + { 12'hfff, 2'b11, instr_reg[15:0], 2'b00};
-								wr_reg <= pc + { 12'hfff, 2'b11, instr_reg[15:0], 2'b00 };
+								pc <= pc + {12'hfff, 2'b11, instr_reg[15:0], 2'b00};
 							end else begin
-								alu_out <= pc + { 12'h000, 2'b00, binstr_reg[15:0], 2'b00 };
-								wr_reg <= pc + { 12'h000, 2'b00, instr_reg[15:0], 2'b00 };
+								pc <= pc + {12'h000, 2'b00, binstr_reg[15:0], 2'b00};
 							end 
 						end
 					endcase
