@@ -20,7 +20,7 @@ module mips(input clk, reset,
 				 //alu_2, 		// alu input 2
 				 alu_out,		// alu output reg
 				 wr_reg;		// write to register register
-				 
+	 
 	regfile regs(.wr_num(wr_sel), .wr_data(wr_reg), .wr_en(reg_wr_en),
 		.rd0_num(rd_sel), .rd0_data(rd),
 		.rd1_num(rs_sel), .rd1_data(rs),
@@ -131,11 +131,11 @@ module mips(input clk, reset,
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
 					end
-			
 					6'b000010: begin
 					//J
 					// 000010 instr_index [25:0]
-					// PC <- 
+					// I:
+					// I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
 						rs_sel = instr_in[20:16];
 						wr_sel = instr_in[25:21];
 						rd_sel <= instr_in[15:11];
@@ -146,6 +146,8 @@ module mips(input clk, reset,
 					end
 					6'b000011: begin
 					//JAL
+					//I: GPR[31]← PC + 8
+					//I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
 					// 000011 instr_index [25:0]
 						rs_sel = instr_in[20:16];
 						wr_sel = instr_in[25:21];
@@ -207,6 +209,11 @@ module mips(input clk, reset,
 					//SLTI set on less than immediate
 					// 001010 rs [26:21] rt [20:16] immediate [15:0]
 					// rt <- (rs < immediate)
+					//if GPR[rs] < sign_extend(immediate)
+					//then GPR[rt] ← 0GPRLEN-1|| 1
+					//else
+					//GPR[rt] ← 0GPRLEN
+					//endif
 						rs_sel = instr_in[20:16];
 						wr_reg <= {16'b0, instr_in[15:0]};
 						wr_sel = instr_in[25:21];
