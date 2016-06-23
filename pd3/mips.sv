@@ -208,7 +208,7 @@ module mips(input clk, reset,
 					// 001010 rs [26:21] rt [20:16] immediate [15:0]
 					// rt <- (rs < immediate)
 						rs_sel = instr_in[20:16];
-						wr_reg <= {16'h0000, instr_in[15:0]};
+						wr_reg <= {16'b0, instr_in[15:0]};
 						wr_sel = instr_in[25:21];
 						rd_sel <= instr_in[15:11];
 						sign_extend_en <= 1'b1;
@@ -223,10 +223,11 @@ module mips(input clk, reset,
 					// rt <= immediate || 0000 0000 0000 0000
 						wr_sel = instr_in[20:16];
 						rd_sel <= instr_in[15:11];
-						alu_op <= 4'b0001;
-						alu_en <= 1'b1;
-						wb_en <= 1'b0;
-						mem_en <= 1'b1;
+						wr_reg <= {instr_in[15:0], 16'b0};
+						wb_en <= 1'b1;
+						alu_en <= 1'b0;
+						alu_op <= 4'b0;
+						mem_en <= 1'b0;
 					end
 					
 					//not needed
@@ -270,7 +271,7 @@ module mips(input clk, reset,
 								pc = rs;
 								wb_en <= 1'b0;
 								alu_en <= 1'b0;
-								alu_op <= 4'b0000;
+								alu_op <= 4'b0;
 								mem_en <= 1'b0;
 							end
 							6'b001010 : begin
@@ -279,10 +280,10 @@ module mips(input clk, reset,
 								//immediate in lower 16
 								//upper 16: 2402 = 0010 1000 0000 0010
 								wr_sel <= instr_in[25:21];
-								wr_reg <= {16'h0, instr_in[15:0]};
+								wr_reg <= {16'b0, instr_in[15:0]};
 								wb_en <= 1'b1;
 								alu_en <= 1'b0;
-								alu_op <= 4'b0000;
+								alu_op <= 4'b0;
 								mem_en <= 1'b0;
 							end
 							6'b000101 : begin
