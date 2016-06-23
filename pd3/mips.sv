@@ -158,6 +158,7 @@ module mips(input clk, reset,
 						//I+1: if condition then
 						//		PC ← PC + target_offset
 						//	 endif
+						wr_sel = instr_in[25:21];
 						rs_sel = instr_in[25:21];
 						rd_sel = instr_in[20:16];
 						if rs == rd begin
@@ -167,10 +168,13 @@ module mips(input clk, reset,
 							alu_en = 1'b0;
 							sign_extend = 1'b0;
 						end
+						mul_en = 1'b0;
+						wb_en <= 1'b0;
 					end
 					6'b000101: begin
 						//BNE
 						// 000101 rs [25:21] rt [20:16] offset [15:0]
+						wr_sel = instr_in[25:21];
 						rs_sel = instr_in[25:21];
 						rd_sel = instr_in[20:16];
 						if rs == rd begin
@@ -180,28 +184,8 @@ module mips(input clk, reset,
 							alu_en = 1'b1;
 							sign_extend = 1'b1;
 						end
-					end
-					6'b000100: begin
-					//BEQ
-					// 000100 rs [25:21] rt [20:16] offset [15:0]
-						rs_sel = instr_in[20:16];
-						wr_sel = instr_in[25:21];
-						rd_sel <= instr_in[15:11];
-						mul_en <= 1'b1;
-						alu_en <= 1'b1;
+						mul_en = 1'b0;
 						wb_en <= 1'b0;
-						mem_en <= 1'b1;
-					end
-					6'b001001: begin
-					//BNE
-					// 000101 rs [25:21] rt [20:16] offset [15:0]
-						rs_sel = instr_in[20:16];
-						wr_sel = instr_in[25:21];
-						rd_sel <= instr_in[15:11];
-						mul_en <= 1'b1;
-						alu_en <= 1'b1;
-						wb_en <= 1'b0;
-						mem_en <= 1'b1;
 					end
 					6'b001010: begin
 					//SLTI set on less than immediate
