@@ -182,6 +182,36 @@ module mips(input clk, reset,
 								alu_en <= 1'b0;
 								mem_en <= 1'b0;
 							end
+							//SLL
+							// 000000 00000 rt [20:16] rd [16:11] sa [10:6] 000000
+							//rd <- rt << sa
+							//BEQ
+							// 000100 rs [25:21] rt [20:16] offset [15:0]
+							//BNE
+							// 000101 rs [25:21] rt [20:16] offset [15:0]
+							//SLTI set on less than immediate
+							// 001010 rs [26:21] rt [20:16] immediate [15:0]
+							//J
+							// 000010 instr_index [25:0]
+							//JAL
+							// 000011 instr_index [25:0]
+							//MUL
+							// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
+							//JR
+							// 000000 rs [25:21] 00 0000 0000 hint [10:6] 001000 (JR)
+							//pc <- rs
+							//SUBU sub unsigned
+							// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
+							// rd <- rs - rt
+							//LUI load upper immediate
+							// 001111 00000 rt [20:16] immediate [15:0]
+							// rt <= immediate || 0000 0000 0000 0000
+							//LBU load byte unsigned
+							// 100100 base [25:21] rt [20:16] offset [15:0]
+							// rt <- memory[base+offset]
+							//SB store byte
+							// 101000 base [25:21] rt [20:16] offset [15:0]
+							// memory[base+offset] <- rt
 						endcase
 					end
 				endcase
