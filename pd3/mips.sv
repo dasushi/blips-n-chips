@@ -6,7 +6,7 @@ module mips(input clk, reset,
     parameter [31:0] sp_init = 32'h80120000; 
 	parameter [31:0] ra_init = 32'h00000000;
     
-	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en;
+	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en, delay_en;
 	logic [4:0]  instr_counter,	//Rolling bit counter to detect which stage the instruction is in
 				 wr_sel, rd_sel, rs_sel;
 	logic [4:0]	 alu_op;
@@ -35,6 +35,7 @@ module mips(input clk, reset,
 		data_rd_wr	<= data_rw_en;
 		alu_en		<= 1'b0;
 		wb_en		<= 1'b0;
+		delay_en 	<= 1'b0;
 		mem_en 		<= 1'b0;
 		alu_op 		<= 5'b0;
 		instr_counter <= 5'b00001;
@@ -143,6 +144,7 @@ module mips(input clk, reset,
 						alu_en <= 1'b1;
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
+						delay_en <= 1'b1;
 					end
 					6'b000011: begin
 					//JAL
@@ -156,6 +158,7 @@ module mips(input clk, reset,
 						alu_en <= 1'b1;
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
+						delay_en <= 1'b1;
 					end
 					6'b000100 : begin
 						//BEQ
@@ -178,12 +181,14 @@ module mips(input clk, reset,
 						end
 						wb_en <= 1'b0;
 						mem_en <= 1'b0;
+						delay_en <= 1'b1;
 					end
 					6'b000101: begin
 						//BNE
 						// 000101 rs [25:21] rt [20:16] offset [15:0]
 						rs_sel = instr_in[25:21];
 						rd_sel = instr_in[20:16];
+						wr_sel = 
 						if rs == rd begin
 							alu_en = 1'b0;
 							sign_extend = 1'b0;
@@ -195,6 +200,7 @@ module mips(input clk, reset,
 						end
 						wb_en <= 1'b0;
 						mem_en <= 1'b0;
+						delay_en <= 1'b1;
 					end
 					6'b001010: begin
 					//SLTI set on less than immediate
@@ -271,6 +277,7 @@ module mips(input clk, reset,
 								alu_en <= 1'b0;
 								alu_op <= 5'b00;
 								mem_en <= 1'b0;
+								delay_en <= 1'b1;
 							end
 							6'b001010 : begin
 								//LI rt, immediate
