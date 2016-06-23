@@ -6,7 +6,7 @@ module mips(input clk, reset,
     parameter [31:0] sp_init = 32'h80120000; 
 	parameter [31:0] ra_init = 32'h00000000;
     
-	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en;
+	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en, link_en;
 	logic [4:0]  instr_counter,	//Rolling bit counter to detect which stage the instruction is in
 				 wr_sel, rd_sel, rs_sel;
 	logic [4:0]	 alu_op;
@@ -75,6 +75,7 @@ module mips(input clk, reset,
 				alu_en		<= 1'b0;
 				wb_en		<= 1'b0;
 				alu_op 		<= 5'b0;
+				link_en 	<= 1'b0;
 				mem_en 		<= 1'b0;
 				wr_sel 		<= 4'h0;
 				rd_sel 		<= 4'h0;
@@ -136,6 +137,7 @@ module mips(input clk, reset,
 					// 000010 instr_index [25:0]
 					// I:
 					// I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
+						wr_reg <= { pc[31:28], instr_index[25:0], 2'b00 };
 						rs_sel = instr_in[20:16];
 						wr_sel = instr_in[25:21];
 						rd_sel <= instr_in[15:11];
@@ -149,10 +151,11 @@ module mips(input clk, reset,
 					//I: GPR[31]← PC + 8
 					//I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
 					// 000011 instr_index [25:0]
+						wr_sel <= 5'h1f;
+						wr_reg <= pc + 8; //{pc[31:28], instr_index[25:0], 2'b00};
 						rs_sel = instr_in[20:16];
-						wr_sel = instr_in[25:21];
-						rd_sel <= instr_in[15:11];
-						alu_op <= 5'b00001;
+						alu_op <= 5'b10000;
+						link_en <= 1'b1;
 						alu_en <= 1'b1;
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
