@@ -10,6 +10,7 @@ module mips(input clk, reset,
 	logic [4:0]  instr_counter,	//Rolling bit counter to detect which stage the instruction is in
 				 wr_sel, rd_sel, rs_sel;
 	logic [5:0]	 alu_op;
+	logic [31:0] alu_in;
 	logic [31:0] pc; 			// program counter
 	logic [31:0] instr_reg, 	// current instruction register
 				 //mem_reg, 		// memory data register (mdr/mbr)
@@ -20,7 +21,7 @@ module mips(input clk, reset,
 				 //alu_2, 		// alu input 2
 				 alu_out,		// alu output reg
 				 wr_reg;		// write to register register
-	 
+	logic fp_init, init_ra;
 	regfile regs(.wr_num(wr_sel), .wr_data(wr_reg), .wr_en(reg_wr_en),
 		.rd0_num(rd_sel), .rd0_data(rd),
 		.rd1_num(rs_sel), .rd1_data(rs),
@@ -28,32 +29,66 @@ module mips(input clk, reset,
 	
 	initial begin
 		//initialize
+		fp_init 	<= 1'b0;
+		init_ra 	<= 1'b0;
+		alu_in 		<= 32'b0;
 		data_addr 	<= sp_init;
 		pc 			<= pc_init;
 		instr_addr  <= pc_init;
-		data_rw_en   = 1'b1;
+		data_rw_en  <= 1'b1;
 		data_rd_wr	<= data_rw_en;
 		alu_en		<= 1'b0;
 		wb_en		<= 1'b0;
 		mem_en 		<= 1'b0;
 		alu_op 		<= 6'b0;
-		instr_counter <= 5'b00001;
+		instr_counter <= 5'b00000;
 		instr_reg	<= 32'h0;
 		//mem_reg	<= 32'h0;
 		//alu_1		<= 32'h0;
-		//alu_2 		<= 32'h0;
+		//alu_2 	<= 32'h0;
 		alu_out		<= 32'h0;
 		
-		wr_sel 		<= 5'h1D; //sp_init = R29
-		wr_reg		<= sp_init;
 		reg_wr_en	<= 1'b1;
-		#10 wr_sel 		<= 5'h1F; //ra_init = R31
-		wr_reg		<= ra_init;
-		#10 wr_sel <= 5'h1E;
-		wr_reg 		<= 32'b0;
+		wr_sel 		<= 5'h1D; //sp_init = R29
+		wr_reg 		<= sp_init;
 		
 		sign_extend_en = 1'b0;
 	end
+	
+	/*initial begin
+		wr_sel 		<= 5'h1F; //ra_init = R31
+		wr_reg		<= ra_init;
+	end*/
+	
+	/*always@ (reset)
+	begin
+		alu_in 	    = 32'b0;
+		data_addr 	= sp_init;
+		pc 			= pc_init;
+		instr_addr  = pc_init;
+		data_rw_en  = 1'b1;
+		data_rd_wr	= data_rw_en;
+		alu_en		= 1'b0;
+		wb_en		= 1'b0;
+		mem_en 		= 1'b0;
+		alu_op 		= 6'b0;
+		instr_counter = 5'b00000;
+		instr_reg	= 32'h0;
+		//mem_reg	= 32'h0;
+		//alu_1		= 32'h0;
+		//alu_2 	= 32'h0;
+		alu_out		= 32'h0;
+		
+		reg_wr_en	= 1'b1;
+		wr_sel 		= 5'h1D; //sp_init = R29
+		wr_reg		= sp_init;
+
+		wr_sel 		= 5'h1F; //ra_init = R31
+		wr_reg		= ra_init;
+
+		
+		sign_extend_en = 1'b0;
+	end*/
 	
 	always @ (pc)
 	begin
@@ -70,9 +105,22 @@ module mips(input clk, reset,
 	
 		// Determine which stage
 		case(instr_counter)
+			5'b00000 : begin //INITIALIZE
+				if(~fp_init) begin
+					reg_wr_en	<= 1'b1;
+					wr_sel  <= 5'h1E;
+					wr_reg 	<= sp_init;
+					fp_init <= 1'b1;
+				end else if(~init_ra) begin
+					wr_sel 	<= 5'h1F; //ra_init = R31
+					wr_reg	<= ra_init;
+					init_ra <= 1'b1;
+					instr_counter <= 5'b00001;
+					
+				end
+			end
 			5'b00001 : begin //IF
 				instr_counter <= instr_counter << 1;
-				reg_wr_en	<= 1'b0;
 				data_rw_en  <= 1'b1;
 				alu_en		<= 1'b0;
 				wb_en		<= 1'b0;
@@ -83,6 +131,7 @@ module mips(input clk, reset,
 				rd_sel 		<= 4'h0;
 				rs_sel 		<= 4'h0;
 				wr_reg		<= 32'h0;
+				reg_wr_en	= 1'b0;
 				sign_extend_en <= 1'b0;
 			end
 			5'b00010 : begin //ID
@@ -90,7 +139,7 @@ module mips(input clk, reset,
 				//instructions we will need: 	
 				//addiu addu jr li lw move nop sw
 				//pages refer to pdf page # in MIPS ISA
-				instr_reg <= instr_in;
+				instr_reg <= instr_in;				
 				case(instr_in[31:26])
 					6'b001001: begin
 						//ADDIU rt, rs, immediate
@@ -111,7 +160,8 @@ module mips(input clk, reset,
 						//[31:26]: 100011
 						wr_sel <= instr_in[20:16]; // store from mem to this reg (rt)
 						rs_sel <= instr_in[25:21]; // base addr
-						//alu_1 <= rd;
+						
+						alu_in = rd;
 						sign_extend_en <= 1'b1; //sets alu_2 with offset
 						alu_en <= 1'b1;
 						alu_op <= 6'b000001;
@@ -124,10 +174,10 @@ module mips(input clk, reset,
 						//store word from rt to memory[base+offset] (pg 280)
 						//address error exception if last two bits != 00
 						//[31:26]: 101011
-						//wr_sel = instr_in[20:16]; //writeback setup
-						rs_sel <= instr_in[25:21]; //base address
-						rd_sel <= instr_in[20:16]; //source word
-						//alu_1 <= rd;
+						wr_sel = 5'b00000; //writeback setup
+						rs_sel = instr_in[25:21]; //base address
+						rd_sel = instr_in[20:16]; //source word
+						alu_in <= rd;
 						sign_extend_en <= 1'b1; //sets alu_2 with immediate
 						alu_en <= 1'b1;
 						alu_op <= 6'b000001;
@@ -361,11 +411,11 @@ module mips(input clk, reset,
 							rd_sel <= 5'b0;
 							if(sign_extend_en) begin
 								if(instr_reg[15]) begin
-									alu_out <= rs + { 16'hffff, instr_reg[15:0]};
-									wr_reg <= rs + { 16'hffff, instr_reg[15:0]};
+									alu_out = rs + { 16'hffff, instr_reg[15:0]};
+									wr_reg = rd;
 								end else begin
-									alu_out <= rs + { 16'h0000, instr_reg[15:0]};
-									wr_reg <= rs + { 16'h0000, instr_reg[15:0]};
+									alu_out = rs + { 16'h0000, instr_reg[15:0]};
+									wr_reg = rd;
 								end 
 							end
 						end
@@ -425,10 +475,10 @@ module mips(input clk, reset,
 			5'b10000 : begin //WB
 				//write back to register if required
 				if(wb_en) begin
-					reg_wr_en = 1'b1;
+					reg_wr_en <= 1'b1;
 				end
 				wb_en <= 1'b0;
-				data_rw_en <= 1'b1;
+				//data_rw_en = 1'b1;
 				instr_counter <= 5'b00001;
 			end
 		endcase

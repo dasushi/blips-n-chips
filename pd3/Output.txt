@@ -1,0 +1,42 @@
+Mikes-MacBook-Pro:pd3 mikemagliocchi$ make run
+vvp tb_BubbleSort.vvp
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(BubbleSort.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(BubbleSort.x): Not enough words in the file for the requested range [0:1048575].
+VCD info: dumpfile dump.vcd opened for output.
+
+i=x
+iverilog -g2012 -s tb_fact -o tb_fact.vvp pd3_tb.sv main_memory.sv regfile.sv mips.sv
+vvp tb_fact.vvp
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(fact.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(fact.x): Not enough words in the file for the requested range [0:1048575].
+VCD info: dumpfile dump.vcd opened for output.
+iverilog -g2012 -s tb_SimpleIf -o tb_SimpleIf.vvp pd3_tb.sv main_memory.sv regfile.sv mips.sv
+vvp tb_SimpleIf.vvp
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SimpleIf.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SimpleIf.x): Not enough words in the file for the requested range [0:1048575].
+VCD info: dumpfile dump.vcd opened for output.
+c=0
+iverilog -g2012 -s tb_SumArray -o tb_SumArray.vvp pd3_tb.sv main_memory.sv regfile.sv mips.sv
+vvp tb_SumArray.vvp
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SumArray.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(SumArray.x): Not enough words in the file for the requested range [0:1048575].
+VCD info: dumpfile dump.vcd opened for output.
+c=1
+iverilog -g2012 -s tb_Swap -o tb_Swap.vvp pd3_tb.sv main_memory.sv regfile.sv mips.sv
+vvp tb_Swap.vvp
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(Swap.x): Not enough words in the file for the requested range [0:1048575].
+WARNING: main_memory.sv:19: $readmemh: Standard inconsistency, following 1364-2005.
+WARNING: main_memory.sv:19: $readmemh(Swap.x): Not enough words in the file for the requested range [0:1048575].
+VCD info: dumpfile dump.vcd opened for output.
+^C** VVP Stop(0) **
+** Flushing output streams.
+** Current simulation time is 8771560 ticks.
