@@ -1,0 +1,2 @@
+Console output is currently stuck on partner's laptop while he is on a bus home - ModelSIM won't email me a license so I can't test, due to Windows. 
+We will email you directly (sjarsena and mmaglioc) with console output when available. 

@@ -9,7 +9,7 @@ module mips(input clk, reset,
 	logic 		 reg_wr_en, alu_en, wb_en, mem_en, data_rw_en, sign_extend_en, link_en;
 	logic [4:0]  instr_counter,	//Rolling bit counter to detect which stage the instruction is in
 				 wr_sel, rd_sel, rs_sel;
-	logic [4:0]	 alu_op;
+	logic [5:0]	 alu_op;
 	logic [31:0] pc; 			// program counter
 	logic [31:0] instr_reg, 	// current instruction register
 				 //mem_reg, 		// memory data register (mdr/mbr)
@@ -36,7 +36,7 @@ module mips(input clk, reset,
 		alu_en		<= 1'b0;
 		wb_en		<= 1'b0;
 		mem_en 		<= 1'b0;
-		alu_op 		<= 5'b0;
+		alu_op 		<= 6'b0;
 		instr_counter <= 5'b00001;
 		instr_reg	<= 32'h0;
 		//mem_reg	<= 32'h0;
@@ -76,14 +76,14 @@ module mips(input clk, reset,
 				data_rw_en  <= 1'b1;
 				alu_en		<= 1'b0;
 				wb_en		<= 1'b0;
-				alu_op 		<= 5'b0;
+				alu_op 		<= 6'b0;
 				link_en 	<= 1'b0;
 				mem_en 		<= 1'b0;
 				wr_sel 		<= 4'h0;
 				rd_sel 		<= 4'h0;
 				rs_sel 		<= 4'h0;
 				wr_reg		<= 32'h0;
-				sign_extend_en = 1'b0;
+				sign_extend_en <= 1'b0;
 			end
 			5'b00010 : begin //ID
 				//decode current_instr to instruction (+ immediate)
@@ -102,19 +102,19 @@ module mips(input clk, reset,
 						//alu_1 <= rs;
 						sign_extend_en <= 1'b1; //operand 2, immediate, sets alu_2
 						alu_en <= 1'b1;
-						alu_op <= 5'b00001;
+						alu_op <= 6'b000001;
 						wb_en <= 1'b1;
 					end
 					6'b100011: begin
 						//LW rt, offset(base)
 						//load word from memory (pg 171) 
 						//[31:26]: 100011
-						wr_sel = instr_in[20:16]; // store from mem to this reg (rt)
-						rs_sel = instr_in[25:21]; // base addr
+						wr_sel <= instr_in[20:16]; // store from mem to this reg (rt)
+						rs_sel <= instr_in[25:21]; // base addr
 						//alu_1 <= rd;
 						sign_extend_en <= 1'b1; //sets alu_2 with offset
 						alu_en <= 1'b1;
-						alu_op <= 5'b00001;
+						alu_op <= 6'b000001;
 						wb_en <= 1'b1;
 						mem_en <= 1'b1;
 					end
@@ -130,7 +130,7 @@ module mips(input clk, reset,
 						//alu_1 <= rd;
 						sign_extend_en <= 1'b1; //sets alu_2 with immediate
 						alu_en <= 1'b1;
-						alu_op <= 5'b00001;
+						alu_op <= 6'b000001;
 						wb_en <= 1'b0;
 						mem_en <= 1'b1;
 					end
@@ -139,7 +139,7 @@ module mips(input clk, reset,
 					// 000010 instr_index [25:0]
 					// I:
 					// I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
-						alu_op <= 5'b10000;
+						alu_op <= 6'b010000;
 						link_en <= 1'b1;
 						alu_en <= 1'b1;
 						wb_en <= 1'b0;
@@ -152,13 +152,13 @@ module mips(input clk, reset,
 					// 000011 instr_index [25:0]
 						//set GPR31
 						wr_sel = 5'h1f; //select reg 31
-						reg_wr_en <= 1'b1; //write to reg
+						reg_wr_en = 1'b1; //write to reg
 						wr_reg = pc + 8; //increment by 8
-						alu_op <= 5'b10000; //same op as branch
+						alu_op <= 6'b010000; //same op as branch
 						link_en <= 1'b1; //indicate to calculate link address using instr_index[25:0]
 						alu_en <= 1'b1;
 						wb_en <= 1'b0;
-						mem_en <= 1'b1;
+						mem_en <= 1'b0;
 					end
 					6'b000100 : begin
 						//BEQ
@@ -173,11 +173,11 @@ module mips(input clk, reset,
 						if (rs == rd) begin
 							alu_en = 1'b1;
 							sign_extend_en = 1'b1;
-							alu_op <= 5'b10000;
+							alu_op <= 6'b010000;
 						end else begin
 							alu_en = 1'b0;
 							sign_extend_en = 1'b0;
-							alu_op <= 5'b00000;
+							alu_op <= 6'b0;
 						end
 						wb_en <= 1'b0;
 						mem_en <= 1'b0;
@@ -190,11 +190,11 @@ module mips(input clk, reset,
 						if (rs == rd) begin
 							alu_en = 1'b0;
 							sign_extend_en = 1'b0;
-							alu_op <= 5'b00000;
+							alu_op <= 6'b0;
 						end else begin
 							alu_en = 1'b1;
 							sign_extend_en = 1'b1;
-							alu_op <= 5'b10000;
+							alu_op <= 6'b010000;
 						end
 						wb_en <= 1'b0;
 						mem_en <= 1'b0;
@@ -208,26 +208,12 @@ module mips(input clk, reset,
 						//else
 						//GPR[rt] ← 0GPRLEN
 						//endif
-						rs_sel = instr_in[25:21];
-						wr_sel = instr_in[20:16];
-						
-						if(instr_in[15]) begin
-							if(rs < {16'hffff, instr_in[15:0]}) begin
-								wr_reg <= 32'b1;
-							end else begin
-								wr_reg <= 32'b0;
-							end	
-						end else begin
-							if(rs < {16'h0000, instr_in[15:0]}) begin
-								wr_reg <= 32'b1;
-							end else begin
-								wr_reg <= 32'b0;
-							end	
-						end
-						alu_op = 5'b0;
+						rs_sel <= instr_in[25:21];
+						wr_sel <= instr_in[20:16];
+						alu_op <= 6'b100000;
 						sign_extend_en <= 1'b0;
 						alu_en <= 1'b1;
-						wb_en <= 1'b0;
+						wb_en <= 1'b1; //rt has to be written back to
 						mem_en <= 1'b0;
 					end
 					6'b001111: begin 
@@ -239,7 +225,7 @@ module mips(input clk, reset,
 						wr_reg <= {instr_in[15:0], 16'b0};
 						wb_en <= 1'b1;
 						alu_en <= 1'b0;
-						alu_op <= 5'b00;
+						alu_op <= 6'b0;
 						mem_en <= 1'b0;
 					end
 					
@@ -261,7 +247,7 @@ module mips(input clk, reset,
 								wr_sel <= instr_in[15:11]; //destination
 								alu_en <= 1'b1;
 								wb_en  <= 1'b1;
-								alu_op <= 5'b00001;
+								alu_op <= 6'b000001;
 								mem_en <= 1'b0;
 								sign_extend_en <= 1'b0;
 							end
@@ -273,7 +259,7 @@ module mips(input clk, reset,
 								wr_sel = instr_in[15:11]; //destination
 								rd_sel <= instr_in[20:16]; //op1
 								alu_en <= 1'b1;
-								alu_op <= 5'b00010;
+								alu_op <= 6'b000010;
 								sign_extend_en <= 1'b0;
 								wb_en <= 1'b1;
 								mem_en <= 1'b0;
@@ -286,7 +272,7 @@ module mips(input clk, reset,
 								pc = rs;
 								wb_en <= 1'b0;
 								alu_en <= 1'b0;
-								alu_op <= 5'b00;
+								alu_op <= 6'b0;
 								mem_en <= 1'b0;
 							end
 							6'b001010 : begin
@@ -298,7 +284,7 @@ module mips(input clk, reset,
 								wr_reg <= {16'b0, instr_in[15:0]};
 								wb_en <= 1'b1;
 								alu_en <= 1'b0;
-								alu_op <= 5'b00;
+								alu_op <= 6'b0;
 								mem_en <= 1'b0;
 							end
 							6'b000101 : begin
@@ -311,7 +297,7 @@ module mips(input clk, reset,
 								wr_reg = rs;
 								wb_en <= 1'b1;
 								alu_en <= 1'b0;
-								alu_op <= 5'b00000;
+								alu_op <= 6'b0;
 								mem_en <= 1'b0;
 							end
 							6'b000000 : begin
@@ -326,7 +312,7 @@ module mips(input clk, reset,
 								rs_sel <= instr_in[20:16];
 								wb_en <= 1'b1;
 								alu_en <= 1'b1;
-								alu_op <= 5'b01000;
+								alu_op <= 6'b001000;
 								mem_en <= 1'b0;
 							end
 						endcase
@@ -341,7 +327,7 @@ module mips(input clk, reset,
 								wr_sel = instr_in[15:11];
 								rd_sel <= instr_in[25:21];
 								alu_en <= 1'b1;
-								alu_op <= 5'b01000;
+								alu_op <= 6'b001000;
 								wb_en <= 1'b0;
 								mem_en <= 1'b1;
 							end
@@ -358,19 +344,19 @@ module mips(input clk, reset,
 				
 				if(alu_en == 1'b1) begin
 					case(alu_op)
-						5'b01000: begin //SLL
+						6'b001000: begin //SLL
 							alu_out <= rs << instr_reg[10:6];
 							wr_reg <= rs << instr_reg[10:6];
 						end
-						5'b00100: begin //MUL
+						6'b000100: begin //MUL
 							alu_out <= rs * rd;
 							wr_reg <= rs * rd;
 						end
-						5'b00010: begin //SUBU
+						6'b000010: begin //SUBU
 							alu_out <= rs - rd;
 							wr_reg <= rs - rd;
 						end
-						5'b00001: begin //ADD
+						6'b000001: begin //ADD
 							wr_sel = rd_sel;
 							rd_sel <= 5'b0;
 							if(sign_extend_en) begin
@@ -383,7 +369,7 @@ module mips(input clk, reset,
 								end 
 							end
 						end
-						5'b10000 : begin //BRANCH OFFSET
+						6'b010000 : begin //BRANCH OFFSET
 							if(link_en) begin //for JAL
 								pc <= {pc[31:28], instr_reg[25:0], 2'b00};
 							end else if(instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
@@ -392,10 +378,25 @@ module mips(input clk, reset,
 								pc <= pc + {12'h000, 2'b00, instr_reg[15:0], 2'b00};
 							end 
 						end
+						6'b100000 : begin //SLTI
+							if(instr_reg[15]) begin
+								if(rs < {16'hffff, instr_reg[15:0]}) begin
+									wr_reg <= 32'b1;
+								end else begin
+									wr_reg <= 32'b0;
+								end	
+							end else begin
+								if(rs < {16'h0000, instr_reg[15:0]}) begin
+									wr_reg <= 32'b1;
+								end else begin
+									wr_reg <= 32'b0;
+								end	
+							end
+						end
 					endcase
 				end
 				alu_en <= 1'b0;
-				reg_wr_en <= 1'b0;
+				reg_wr_en = 1'b0;
 				if(~alu_op[4]) begin
 					pc <= pc + 4;//increment PC after done with instr_in
 				end
@@ -424,7 +425,7 @@ module mips(input clk, reset,
 			5'b10000 : begin //WB
 				//write back to register if required
 				if(wb_en) begin
-					reg_wr_en <= 1'b1;
+					reg_wr_en = 1'b1;
 				end
 				wb_en <= 1'b0;
 				data_rw_en <= 1'b1;
