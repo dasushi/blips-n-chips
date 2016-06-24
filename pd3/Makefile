@@ -1,8 +1,8 @@
 # if using Makefile for iverilog:
 # - change $stop to $finish is testbenches
 # - uncomment "initial $dumpvars(0, tb_name);" to get waveforms
-source=pd3_tb.sv memory.sv regfile.sv mips.sv
-iFlags=-g2005-sv
+source=pd3_tb.sv main_memory.sv regfile.sv mips.sv
+iFlags=-g2012
 
 .PHONY: run
 run: BubbleSort fact SimpleIf SumArray Swap
