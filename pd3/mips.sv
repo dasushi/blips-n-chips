@@ -151,8 +151,8 @@ module mips(input clk, reset,
 					//I+1:PC ← PCGPRLEN-1..28 || instr_index || 02
 					// 000011 instr_index [25:0]
 						//set GPR31
-						wr_sel = 5'h1f;
-						reg_wr_en <= 1'b1;
+						wr_sel = 5'h1f; //select reg 31
+						reg_wr_en <= 1'b1; //write to reg
 						wr_reg = pc + 8; //increment by 8
 						alu_op <= 5'b10000; //same op as branch
 						link_en <= 1'b1; //indicate to calculate link address using instr_index[25:0]
@@ -226,7 +226,7 @@ module mips(input clk, reset,
 						end
 						alu_op = 5'b0;
 						sign_extend_en <= 1'b0;
-						alu_en <= 1'b0;
+						alu_en <= 1'b1;
 						wb_en <= 1'b0;
 						mem_en <= 1'b0;
 					end
@@ -376,10 +376,10 @@ module mips(input clk, reset,
 							if(sign_extend_en) begin
 								if(instr_reg[15]) begin
 									alu_out <= rs + { 16'hffff, instr_reg[15:0]};
-									wr_reg = rd;
+									wr_reg <= rs + { 16'hffff, instr_reg[15:0]};
 								end else begin
 									alu_out <= rs + { 16'h0000, instr_reg[15:0]};
-									wr_reg = rd;
+									wr_reg <= rs + { 16'h0000, instr_reg[15:0]};
 								end 
 							end
 						end
