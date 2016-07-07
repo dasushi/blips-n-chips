@@ -186,6 +186,15 @@ module mips(input clk, reset,
 					alu_en = 1'b1;
 					sign_extend_en = 1'b1;
 					alu_op <= 5'b10000;
+
+						if(EX_instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
+							// This is calculating +4 too many
+							pc <= pc + {12'hfff, 2'b11, ID_instr_reg[15:0], 2'b00};
+						end else begin
+							// This is calculating +4 too many
+							pc <= pc + {12'h000, 2'b00, ID_instr_reg[15:0], 2'b00};
+						end 
+						
 				end else begin
 					alu_en = 1'b0;
 					sign_extend_en = 1'b0;
@@ -300,17 +309,12 @@ module mips(input clk, reset,
 							ME_wr_reg <= rs +rd;
 						end
 					end
-					5'b10000 : begin //BRANCH OFFSET
-						if(EX_instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
-							pc <= pc + {12'hfff, 2'b11, EX_instr_reg[15:0], 2'b00};
-						end else begin
-							pc <= pc + {12'h000, 2'b00, EX_instr_reg[15:0], 2'b00};
-						end 
-					end
 				endcase
 			end
-			pc <= pc + 4;//increment PC after done with instr_in
-
+			if(~(ID_instr_reg[31:26] == 6'b000100)) begin
+				// branch delay
+				pc <= pc + 4;//increment PC after done with instr_in
+			end 
 		end
 	end //EX
 		
@@ -332,7 +336,6 @@ module mips(input clk, reset,
 				WB_wr_reg_data <= ME_wr_reg;
 				WB_en <= 1'b1;
 			end
-		 	
 		end
 	end // ME
 
