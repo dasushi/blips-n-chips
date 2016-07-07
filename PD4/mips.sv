@@ -19,13 +19,16 @@ module mips(input clk, reset,
 				 WB_wb_en,
 				 WB_reg_wr_en;			 
 	
+	
+			   
+	
 	logic [4:0]	 EX_wr_sel,
 				 ME_wr_sel,
 				 WB_wr_sel,
 				 rd_sel,
-				 rs_sel;
-				 
-	//logic [4:0]	 alu_op;
+				 rs_sel,
+				 alu_op;
+	
 	logic [31:0] pc; 			// program counter
 	logic [31:0] /*IF_IS_IMPLIED*/ ID_instr_reg, EX_instr_reg, ME_instr_reg, WB_instr_reg;
 	//Instruction propagation	
@@ -62,6 +65,7 @@ module mips(input clk, reset,
 		EX_mem_en 	<= 1'b0;
 		ME_mem_en 	<= 1'b0;
 		alu_out		<= 32'h0;
+		alu_op 		<= 5'b0;
 		
 		WB_wr_sel 		<= 5'h1D; //sp_init = R29
 		WB_wr_reg_data		<= sp_init;
@@ -134,12 +138,12 @@ module mips(input clk, reset,
 				// [0010 01][11 101][1 1101]
 				EX_wr_sel <= ID_instr_reg[20:16]; //store result here (rt)
 				rs_sel <= ID_instr_reg[25:21]; //operand 1, rs 
-				//alu_1 <= rs;
 				sign_extend_en <= 1'b1; //operand 2, immediate, sets alu_2
 				alu_en <= 1'b1;
-				//alu_op <= 5'b00001;
+				alu_op <= 5'b00001;
 				EX_wb_en <= 1'b1;
 				EX_mem_en <= 1'b0;
+				alu_op <= 5'b00001;
 			end
 			6'b100011: begin
 				//LW rt, offset(base)
@@ -147,10 +151,9 @@ module mips(input clk, reset,
 				//[31:26]: 100011
 				EX_wr_sel <= ID_instr_reg[20:16]; // store from mem to this reg (rt)
 				rs_sel = ID_instr_reg[25:21]; // base addr
-				//alu_1 <= rd;
 				sign_extend_en <= 1'b1; //sets alu_2 with offset
 				alu_en <= 1'b1;
-				//alu_op <= 5'b00001;
+				alu_op <= 5'b00001;
 				EX_wb_en <= 1'b1;
 				EX_mem_en <= 1'b1;
 			end
@@ -163,10 +166,9 @@ module mips(input clk, reset,
 				EX_wr_sel <= ID_instr_reg[20:16]; //writeback setup
 				rs_sel <= ID_instr_reg[25:21]; //base address
 				rd_sel <= ID_instr_reg[20:16]; //source word
-				//alu_1 <= rd;
 				sign_extend_en <= 1'b1; //sets alu_2 with immediate
 				alu_en <= 1'b1;
-				//alu_op <= 5'b00001;
+				alu_op <= 5'b00001;
 				EX_wb_en <= 1'b0;
 				EX_mem_en <= 1'b1;
 			end
@@ -183,11 +185,11 @@ module mips(input clk, reset,
 				if (rs == rd) begin
 					alu_en = 1'b1;
 					sign_extend_en = 1'b1;
-					//alu_op <= 5'b10000;
+					alu_op <= 5'b10000;
 				end else begin
 					alu_en = 1'b0;
 					sign_extend_en = 1'b0;
-					//alu_op <= 5'b00000;
+					alu_op <= 5'b00000;
 				end
 				EX_wb_en <= 1'b0;
 				EX_mem_en <= 1'b0;
@@ -198,11 +200,11 @@ module mips(input clk, reset,
 						//SUBU sub unsigned
 						// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
 						// rd <- rs - rt
-						rs_sel = ID_instr_reg[25:21]; //op2
-						EX_wr_sel <= ID_instr_reg[15:11]; //destination
+						rs_sel <= ID_instr_reg[25:21]; //op2
 						rd_sel <= ID_instr_reg[20:16]; //op1
+						EX_wr_sel <= ID_instr_reg[15:11]; //destination
 						alu_en <= 1'b1;
-						//alu_op <= 5'b00010;
+					    alu_op <= 5'b00010;
 						sign_extend_en <= 1'b0;
 						EX_wb_en <= 1'b1;
 						EX_mem_en <= 1'b0;
@@ -213,9 +215,8 @@ module mips(input clk, reset,
 						//[31:26]: 000000 & [5:0]: 0010000
 						rs_sel = ID_instr_reg[25:21];
 						pc = rs;
-						
 						alu_en <= 1'b0;
-						//alu_op <= 5'b00;
+						alu_op <= 5'b00000;
 						EX_wb_en <= 1'b0;
 						EX_mem_en <= 1'b0;
 					end
@@ -229,11 +230,10 @@ module mips(input clk, reset,
 						//rd <- rt << sa
 						EX_wr_sel = ID_instr_reg[15:11];
 						rs_sel <= ID_instr_reg[20:16];
-						
-						alu_en <= 1'b1;
-						//alu_op <= 5'b01000;
+						alu_en <= 1'b0;
+						alu_op <= 5'b01000;
 						EX_mem_en <= 1'b0;
-						EX_wb_en <= 1'b1;
+						EX_wb_en <= 1'b0;
 					end
 				endcase
 			end
@@ -256,31 +256,58 @@ module mips(input clk, reset,
 			//adds alu_1 and alu_2
 			//output to alu_out
 			if(alu_en == 1'b1) begin
-				if(sign_extend_en) begin
-					if(EX_instr_reg[15]) begin
-						alu_out  = rs + { 16'hffff, EX_instr_reg[15:0]};
-						data_out = rd;
-						ME_wr_reg <= rs + { 16'hffff, EX_instr_reg[15:0]};
-					end else begin
-						alu_out = rs + { 16'h0000, EX_instr_reg[15:0]};
-						data_out = rd;
-						ME_wr_reg <= rs + { 16'h0000, EX_instr_reg[15:0]};
+				case(alu_op)
+					5'b01000: begin //SLL
+						alu_out <= rs << EX_instr_reg[10:6];
+						ME_wr_reg <= rs << EX_instr_reg[10:6];
 					end
-					if (EX_mem_en) begin
-						if(EX_instr_reg[29]) begin //TODO: Add write flag to avoid holding this reg
-							data_addr = alu_out;
-							data_rd_wr <= 1'b0;
+					5'b00010: begin //SUBU
+						alu_out <= rs - rd;
+						ME_wr_reg <= rs - rd;
+					end
+					5'b00001: begin //ADDIU
+						if(sign_extend_en) begin
+							if(EX_instr_reg[15]) begin
+								alu_out  = rs + { 16'hffff, EX_instr_reg[15:0]};
+								data_out = rd;
+								if (~EX_mem_en) begin
+									ME_wr_reg <= rs + { 16'hffff, EX_instr_reg[15:0]};
+								end else begin
+									ME_wr_reg <= rd;
+								end
+							end else begin
+								alu_out = rs + { 16'h0000, EX_instr_reg[15:0]};
+								data_out = rd;
+								if (~EX_mem_en) begin
+									ME_wr_reg <= rs + { 16'h0000, EX_instr_reg[15:0]};
+								end else begin
+									ME_wr_reg <= rd;
+								end
+							end
+							if (EX_mem_en) begin
+								if(EX_instr_reg[29]) begin //TODO: Add write flag to avoid holding this reg
+									data_addr = alu_out;
+									data_rd_wr <= 1'b0;
+								end else begin
+									data_addr = alu_out;
+									data_rd_wr <= 1'b1;
+								end
+							end else begin
+								data_rd_wr <= 1'b1;
+							end
 						end else begin
-							data_addr = alu_out;
-							data_rd_wr <= 1'b1;
+							alu_out <= rs + rd;
+							ME_wr_reg <= rs +rd;
 						end
-					end else begin
-						data_rd_wr <= 1'b1;
 					end
-				end else begin
-					alu_out <= rs + rd;
-					ME_wr_reg <= rs +rd;
-				end
+					5'b10000 : begin //BRANCH OFFSET
+						if(EX_instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
+							pc <= pc + {12'hfff, 2'b11, EX_instr_reg[15:0], 2'b00};
+						end else begin
+							pc <= pc + {12'h000, 2'b00, EX_instr_reg[15:0], 2'b00};
+						end 
+					end
+				endcase
 			end
 			pc <= pc + 4;//increment PC after done with instr_in
 
@@ -296,7 +323,7 @@ module mips(input clk, reset,
 		 	if(ME_mem_en) begin
 				if(ME_instr_reg[29]) begin //TODO: Add write flag to avoid holding this reg
 					WB_wb_en <= 1'b1;
-					WB_wr_reg_data <= data_in;
+					WB_wr_reg_data <= ME_wr_reg;
 				end else begin
 					WB_wb_en <= 1'b0;
 					WB_wr_reg_data = data_in;
