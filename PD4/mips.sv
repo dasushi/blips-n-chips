@@ -222,10 +222,10 @@ module mips(input clk, reset,
 						//JR rs
 						//jump register, set PC to rs (pg 155) 
 						//[31:26]: 000000 & [5:0]: 0010000
-						rs_sel = ID_instr_reg[25:21];
-						pc = rs;
-						alu_en <= 1'b0;
-						alu_op <= 5'b00000;
+						rs_sel <= ID_instr_reg[25:21];
+						//pc <= rs;
+						alu_en <= 1'b1;
+						alu_op <= 5'b00100;
 						EX_wb_en <= 1'b0;
 						EX_mem_en <= 1'b0;
 					end
@@ -307,11 +307,14 @@ module mips(input clk, reset,
 						end else begin
 							alu_out <= rs + rd;
 							ME_wr_reg <= rs +rd;
-						end
+						end	
 					end
+					5'b00100: begin //JUMP
+						pc<= rs;
+					end	
 				endcase
 			end
-			if(~(ID_instr_reg[31:26] == 6'b000100)) begin
+			if(~(ID_instr_reg[31:26] == 6'b000100) && (alu_op != 5'b00100)) begin
 				// branch delay
 				pc <= pc + 4;//increment PC after done with instr_in
 			end 
