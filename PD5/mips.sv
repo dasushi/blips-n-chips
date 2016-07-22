@@ -13,12 +13,12 @@ module mips(input clk, reset,
 				 EX_mem_en,
 				 data_rw_en,
 				 ME_wb_en,
-				 ME_data_rw_en,
 				 ME_reg_wr_en,
 				 ME_mem_en,
 				 WB_wb_en,
 				 WB_reg_wr_en,
-				 link_en;			 
+				 link_en,
+				 stall;			 
 			   
 	
 	logic [4:0]	 EX_wr_sel,
@@ -68,6 +68,7 @@ module mips(input clk, reset,
 		alu_out		<= 32'h0;
 		alu_op 		<= 5'b0;
 		link_en 	<= 1'b0;
+		stall 		<= 1'b0;
 		
 		//WB_wr_sel 		<= 5'h1D; //sp_init = R29
 		//WB_wr_reg_data	<= sp_init;
@@ -116,8 +117,18 @@ module mips(input clk, reset,
 	always @ (posedge clk)
 	begin : IF
 		if(IF_en) begin
-			ID_instr_reg <= instr_in;
-			ID_en <= 1'b1;
+			if(!stall && (ID_instr_reg[31:26] == 6'b100011) && (instr_in[20:16] == ID_instr_reg[20:16])) begin
+				stall <= 1'b1;
+				
+			end else begin
+				stall <= 1'b0;
+				//ID_instr_reg <= instr_in;
+				//ID_en <= 1'b1;
+			end
+			if(!stall) begin
+				ID_instr_reg <= instr_in;
+				ID_en <= 1'b1;
+			end
 		end else begin
 			WB_wr_sel <= 5'h1F; //ra_init = R31
 			WB_wr_reg_data <= ra_init;
@@ -127,7 +138,9 @@ module mips(input clk, reset,
 	
 	always @ (posedge clk) 
 	begin: ID
-		if(ID_en) begin
+		if(stall) begin
+			EX_instr_reg <= EX_instr_reg;
+		end else if(ID_en) begin
 		//decode current_instr to instruction (+ immediate)
 		//instructions we will need: 	
 		//addiu addu jr li lw move nop sw
@@ -396,7 +409,7 @@ module mips(input clk, reset,
 	
 	always @ (posedge clk)
 	begin: EX
-		if(EX_en) begin			
+		if(EX_en) begin		
 			//execute arithmetic and instruction, eg. address = base + offset
 			//run if alu_en is set
 			//adds alu_1 and alu_2
@@ -475,7 +488,7 @@ module mips(input clk, reset,
 					end	
 				endcase
 			end
-			if(~(ID_instr_reg[31:26] == 6'b000100) && (alu_op != 5'b00100)) begin
+			if(~(ID_instr_reg[31:26] == 6'b000100) && (alu_op != 5'b00100) && !stall) begin
 				// branch delay
 				pc <= pc + 4;//increment PC after done with instr_in
 			end 
@@ -521,7 +534,7 @@ module mips(input clk, reset,
 	end // WB
 	
 	always @ (rs)
-	begin //TODO: determine when to conditionally set alu_rx when forwarding?
+	begin 
 		if(rs_sel == ME_wr_sel && WB_en) begin
 			alu_rs = ME_wr_reg;
 		end else if(rs_sel == WB_wr_sel) begin
