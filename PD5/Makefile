@@ -1,11 +1,12 @@
 # if using Makefile for iverilog:
 # - change $stop to $finish is testbenches
 # - uncomment "initial $dumpvars(0, tb_name);" to get waveforms
+# iverilog -g2012 -s tb_SimpleAdd -o SimpleAdd pd5_tb.sv main_memory.sv regfile.sv mips.sv
 source=pd5_tb.sv main_memory.sv regfile.sv mips.sv
 iFlags=-g2012
 
 .PHONY: run
-run: BubbleSort fact SimpleAdd SimpleIf SumArray Swap
+run: SimpleAdd BubbleSort fact SimpleIf SumArray Swap
 
 # tb_BubbleSort
 .PHONY: BubbleSort

@@ -17,9 +17,8 @@ module mips(input clk, reset,
 				 ME_reg_wr_en,
 				 ME_mem_en,
 				 WB_wb_en,
-				 WB_reg_wr_en;			 
-	
-	
+				 WB_reg_wr_en,
+				 link_en;			 
 			   
 	
 	logic [4:0]	 EX_wr_sel,
@@ -34,6 +33,8 @@ module mips(input clk, reset,
 	//Instruction propagation	
 	logic [31:0] rs, 			// register output 2
 				 rd, 			// destination register
+				 alu_rs, 			// register output 2
+				 alu_rd, 			// destination register
 				 alu_out,		// alu output reg
 				 EX_wr_reg,
 				 ME_wr_reg,
@@ -52,7 +53,7 @@ module mips(input clk, reset,
 		EX_en = 1'b0;
 		ME_en = 1'b0;
 		WB_en = 1'b0;
-		
+
 		data_addr 	<= sp_init;
 		pc 			<= pc_init;
 		instr_addr  <= pc_init;
@@ -66,15 +67,16 @@ module mips(input clk, reset,
 		ME_mem_en 	<= 1'b0;
 		alu_out		<= 32'h0;
 		alu_op 		<= 5'b0;
+		link_en 	<= 1'b0;
 		
-		WB_wr_sel 		<= 5'h1D; //sp_init = R29
-		WB_wr_reg_data		<= sp_init;
+		//WB_wr_sel 		<= 5'h1D; //sp_init = R29
+		//WB_wr_reg_data	<= sp_init;
 		WB_reg_wr_en    <= 1'b1;
 		ME_reg_wr_en	<= 1'b0;
 		EX_reg_wr_en	<= 1'b0;
 		
-		//#10 wr_sel 		<= 5'h1F; //ra_init = R31
-		//wr_reg		<= ra_init;
+		//WB_wr_sel 		<= 5'h1E; //ra_init = R31
+		//WB_wr_reg		<= ra_init;
 		/*#90 pc <= 32'h80020018;
 		#10	pc <= 32'h8002001c;
 		#10	pc <= 32'h80020020;
@@ -92,11 +94,12 @@ module mips(input clk, reset,
 			ME_en <= 1'b0;
 			WB_en <= 1'b0;
 			WB_reg_wr_en    <= 1'b1;
-
 		end else begin
-			IF_en <= 1'b1;
-			WB_wr_sel 		<= 5'h1D; //sp_init = R29
-			WB_wr_reg_data		<= sp_init;
+			IF_en 			<= 1'b1;
+			WB_wr_sel		<= 5'h1D; //sp_init = R29
+			WB_wr_reg_data	<= sp_init;
+			//WB_wr_sel		<= 5'h1E; //fp_init = R30
+			//WB_wr_reg_data  <= ra_init;
 			WB_reg_wr_en    <= 1'b1;
 
 		end
@@ -175,7 +178,7 @@ module mips(input clk, reset,
 				//store word from rt to memory[base+offset] (pg 280)
 			    //address error exception if last two bits != 00
 				//[31:26]: 101011
-				EX_wr_sel <= ID_instr_reg[20:16]; //writeback setup
+				EX_wr_sel <= 5'bx; //writeback setup
 				rs_sel <= ID_instr_reg[25:21]; //base address
 				rd_sel <= ID_instr_reg[20:16]; //source word
 				sign_extend_en <= 1'b1; //sets alu_2 with immediate
@@ -192,12 +195,12 @@ module mips(input clk, reset,
 				alu_op <= 6'b010000;
 				link_en <= 1'b1;
 				alu_en <= 1'b1;
-				wb_en <= 1'b0;
-				mem_en <= 1'b0;
+				EX_wb_en <= 1'b0;
+				EX_mem_en <= 1'b0;
 				if(ID_instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
-					pc <= pc + {12'hfff, 2'b11, instr_reg[15:0], 2'b00};
+					pc <= pc + {12'hfff, 2'b11, ID_instr_reg[15:0], 2'b00};
 				end else begin
-					pc <= pc + {12'h000, 2'b00, instr_reg[15:0], 2'b00};
+					pc <= pc + {12'h000, 2'b00, ID_instr_reg[15:0], 2'b00};
 				end 
 			end
 			6'b000011: begin
@@ -276,7 +279,7 @@ module mips(input clk, reset,
 				//GPR[rt] ← 0GPRLEN
 				//endif
 				rs_sel <= instr_in[25:21];
-				wr_sel <= instr_in[20:16];
+				EX_wr_sel <= instr_in[20:16];
 				alu_op <= 5'b10000;
 				alu_en <= 1'b1;
 				EX_wb_en <= 1'b1; //rt has to be written back to
@@ -284,19 +287,6 @@ module mips(input clk, reset,
 			end
 			6'b000000 : begin  //SPECIAL
 				case(instr_in[5:0])
-					6'b100001 : begin //ADDU
-						//ADDU rt, rd, rs
-						//add unsigned word (pg 48)
-						//[31:26]: 000000 & [5:0]: 100001
-						rs_sel = instr_in[25:21]; //op1
-						rd_sel = instr_in[20:16]; //op2
-						EX_wr_sel <= instr_in[15:11]; //destination
-						alu_en <= 1'b1;
-						EX_wb_en  <= 1'b1;
-						alu_op <= 5'b00011;
-						EX_mem_en <= 1'b0;
-						sign_extend_en <= 1'b0;
-					end 
 					6'b100011 : begin //SUBU
 						//SUBU sub unsigned
 						// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
@@ -361,6 +351,20 @@ module mips(input clk, reset,
 						EX_mem_en <= 1'b0;
 						EX_wb_en <= 1'b0;
 					end
+					default: begin
+					//6'b100001 : begin //ADDU
+						//ADDU rt, rd, rs
+						//add unsigned word (pg 48)
+						//[31:26]: 000000 & [5:0]: 100001
+						rs_sel <= ID_instr_reg[25:21]; //op1
+						rd_sel <= ID_instr_reg[20:16]; //op2
+						EX_wr_sel <= ID_instr_reg[15:11]; //destination
+						alu_en <= 1'b1;
+						EX_wb_en  <= 1'b1;
+						alu_op <= 5'b00011;
+						EX_mem_en <= 1'b0;
+						sign_extend_en <= 1'b0;
+					end 
 				endcase
 			end
 			6'b011100 : begin	//SPECIAL2
@@ -369,9 +373,9 @@ module mips(input clk, reset,
 						//MUL
 						// 011100 (SPECIAL2) rs [25:21] rt [20:16] rd[15:11] 00000 000010 (MUL)
 						//rd <- rs * rt;
-						rs_sel = instr_in[20:16];
-						EX_wr_sel = instr_in[15:11];
-						rd_sel <= instr_in[25:21];
+						rs_sel <= ID_instr_reg[20:16];
+						EX_wr_sel = ID_instr_reg[15:11];
+						rd_sel <= ID_instr_reg[25:21];
 						alu_en <= 1'b1;
 						alu_op <= 5'b11000;
 						EX_wb_en <= 1'b1;
@@ -381,18 +385,18 @@ module mips(input clk, reset,
 			end
 		endcase
 		EX_en <= 1'b1;
+		end else begin
+			if(IF_en) begin
+				WB_wr_sel		<= 5'h1E; //fp_init = R30
+				WB_wr_reg_data  <= sp_init;
+				WB_reg_wr_en    <= 1'b1;
+			end
 		end
 	end // ID
 	
 	always @ (posedge clk)
 	begin: EX
-		if(EX_en) begin
-			ME_wb_en <= EX_wb_en;
-			ME_mem_en <= EX_mem_en;
-			ME_reg_wr_en <= EX_reg_wr_en;
-			ME_wr_sel <= EX_wr_sel; // This isn't the case for ADDU
-			ME_instr_reg <= EX_instr_reg;
-			ME_en <= 1'b1;
+		if(EX_en) begin			
 			//execute arithmetic and instruction, eg. address = base + offset
 			//run if alu_en is set
 			//adds alu_1 and alu_2
@@ -400,22 +404,22 @@ module mips(input clk, reset,
 			if(alu_en == 1'b1) begin
 				case(alu_op)
 					5'b01000: begin //SLL
-						alu_out <= rs << EX_instr_reg[10:6];
-						ME_wr_reg <= rs << EX_instr_reg[10:6];
+						alu_out <= alu_rs << EX_instr_reg[10:6];
+						ME_wr_reg <= alu_rs << EX_instr_reg[10:6];
 					end
 					5'b11000: begin //MUL
-						alu_out <= rs * rd;
-						ME_wr_reg <= rs * rd;
+						alu_out <= alu_rs * alu_rd;
+						ME_wr_reg <= alu_rs * alu_rd;
 					end
 					5'b10000 : begin //SLTI
-							if(instr_reg[15]) begin
-								if(rs < {16'hffff, EX_instr_reg[15:0]}) begin
+							if(EX_instr_reg[15]) begin
+								if(alu_rs < {16'hffff, EX_instr_reg[15:0]}) begin
 									ME_wr_reg <= 32'b1;
 								end else begin
 									ME_wr_reg <= 32'b0;
 								end	
 							end else begin
-								if(rs < {16'h0000, EX_instr_reg[15:0]}) begin
+								if(alu_rs < {16'h0000, EX_instr_reg[15:0]}) begin
 									ME_wr_reg <= 32'b1;
 								end else begin
 									ME_wr_reg <= 32'b0;
@@ -423,30 +427,31 @@ module mips(input clk, reset,
 							end
 						end
 					5'b00010: begin //SUBU
-						alu_out <= rs - rd;
-						ME_wr_reg <= rs - rd;
+						alu_out <= alu_rs - alu_rd;
+						ME_wr_reg <= alu_rs - alu_rd;
 					end
 					5'b00011: begin //ADDU
 							ME_wr_sel <= EX_wr_sel;
-							ME_wr_reg <= rs + rd;
+							ME_wr_reg <= alu_rs + alu_rd;
+							alu_out = alu_rs + alu_rd;
 						end
 					5'b00001: begin //ADDIU
 						if(sign_extend_en) begin
 							if(EX_instr_reg[15]) begin
-								alu_out  = rs + { 16'hffff, EX_instr_reg[15:0]};
-								data_out = rd;
+								alu_out  = alu_rs + { 16'hffff, EX_instr_reg[15:0]};
+								data_out = alu_rd;
 								if (~EX_mem_en) begin
-									ME_wr_reg <= rs + { 16'hffff, EX_instr_reg[15:0]};
+									ME_wr_reg <= alu_rs + { 16'hffff, EX_instr_reg[15:0]};
 								end else begin
-									ME_wr_reg <= rd;
+									ME_wr_reg <= alu_rd;
 								end
 							end else begin
-								alu_out = rs + { 16'h0000, EX_instr_reg[15:0]};
-								data_out = rd;
+								alu_out = alu_rs + { 16'h0000, EX_instr_reg[15:0]};
+								data_out = alu_rd;
 								if (~EX_mem_en) begin
-									ME_wr_reg <= rs + { 16'h0000, EX_instr_reg[15:0]};
+									ME_wr_reg <= alu_rs + { 16'h0000, EX_instr_reg[15:0]};
 								end else begin
-									ME_wr_reg <= rd;
+									ME_wr_reg <= alu_rd;
 								end
 							end
 							if (EX_mem_en) begin
@@ -461,8 +466,8 @@ module mips(input clk, reset,
 								data_rd_wr <= 1'b1;
 							end
 						end else begin
-							alu_out <= rs + rd;
-							ME_wr_reg <= rs +rd;
+							alu_out <= alu_rs + alu_rd;
+							ME_wr_reg <= alu_rs + alu_rd;
 						end	
 					end
 					5'b00100: begin //JUMP
@@ -474,6 +479,12 @@ module mips(input clk, reset,
 				// branch delay
 				pc <= pc + 4;//increment PC after done with instr_in
 			end 
+			ME_wb_en <= EX_wb_en;
+			ME_mem_en <= EX_mem_en;
+			ME_reg_wr_en <= EX_reg_wr_en;
+			ME_wr_sel <= EX_wr_sel; // This isn't the case for ADDU
+			ME_instr_reg <= EX_instr_reg;
+			ME_en <= 1'b1;
 		end
 	end //EX
 		
@@ -508,6 +519,26 @@ module mips(input clk, reset,
 			end
 		end
 	end // WB
-
 	
+	always @ (rs)
+	begin //TODO: determine when to conditionally set alu_rx when forwarding?
+		if(rs_sel == ME_wr_sel && WB_en) begin
+			alu_rs = ME_wr_reg;
+		end else if(rs_sel == WB_wr_sel) begin
+			alu_rs = WB_wr_reg_data;
+		end else begin
+			alu_rs = rs;
+		end
+	end
+	
+	always @ (rd)
+	begin
+		if(rd_sel == ME_wr_sel && WB_en) begin
+			alu_rd = ME_wr_reg;
+		end else if(rd_sel == WB_wr_sel) begin
+			alu_rd = WB_wr_reg_data;
+		end else begin
+			alu_rd = rd;
+		end
+	end
 endmodule

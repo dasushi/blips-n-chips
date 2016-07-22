@@ -50,11 +50,11 @@ module tb_BubbleSort;
 			else begin
 				$write("\n");
 				$display("time %0d", $time);
-				$stop; //$finish if using iverilog
+				$finish; //if using iverilog
 			end
     end
 
-    //initial $dumpvars(0, tb_BubbleSort); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_BubbleSort); // for iverilog+gtkwave
 
 endmodule
 
@@ -110,11 +110,11 @@ module tb_fact;
 				#100 ;
 			end
 			else begin
-				#10 $stop; //$finish if using iverilog
+				#10 $finish; // if using iverilog
 			end
     end
 
-    //initial $dumpvars(0, tb_fact); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_fact); // for iverilog+gtkwave
 
 endmodule
 
@@ -160,10 +160,10 @@ module tb_SimpleAdd;
 
 		wait(im_addr==0)
    			$display("time %3d, c=%0d", $time, tb_SimpleAdd.proc.regs.data[2]);
-		$stop; //$finish if using iverilog
+		$finish; // if using iverilog
     end
 
-    //initial $dumpvars(0, tb_SimpleAdd); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_SimpleAdd); // for iverilog+gtkwave
 
 endmodule
 
@@ -209,10 +209,10 @@ module tb_SimpleIf;
 
 		wait(im_addr==0)
    			$display("time %3d, c=%0d", $time, tb_SimpleIf.proc.regs.data[2]);
-		$stop; //$finish if using iverilog
+		$finish; // if using iverilog
 	end
 
-    //initial $dumpvars(0, tb_SimpleIf); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_SimpleIf); // for iverilog+gtkwave
 
 endmodule
 
@@ -263,11 +263,11 @@ module tb_SumArray;
 					tb_SumArray.proc.regs.data[2]);
 			end
 			else if(im_addr==0) begin
-				$stop; //$finish if using iverilog
+				$finish; // if using iverilog
 			end
 	end
 
-    //initial $dumpvars(0, tb_SumArray); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_SumArray); // for iverilog+gtkwave
 
 endmodule
 
@@ -318,10 +318,10 @@ module tb_Swap;
 		end
 
 		wait(im_addr==0)
-			$stop; //$finish if using iverilog
+			$finish; //if using iverilog
 	end
 
-    //initial $dumpvars(0, tb_Swap); // for iverilog+gtkwave
+    initial $dumpvars(0, tb_Swap); // for iverilog+gtkwave
 
 endmodule
 
