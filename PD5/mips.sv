@@ -18,8 +18,10 @@ module mips(input clk, reset,
 				 WB_wb_en,
 				 WB_reg_wr_en,
 				 link_en,
-				 stall;			 
-			   
+				 stall,
+				 stall_deasserted;			 
+	
+	logic hit_slti;
 	
 	logic [4:0]	 EX_wr_sel,
 				 ME_wr_sel,
@@ -69,6 +71,9 @@ module mips(input clk, reset,
 		alu_op 		<= 5'b0;
 		link_en 	<= 1'b0;
 		stall 		<= 1'b0;
+		stall_deasserted <= 1'b0;
+		
+		hit_slti <= 1'b0;
 		
 		//WB_wr_sel 		<= 5'h1D; //sp_init = R29
 		//WB_wr_reg_data	<= sp_init;
@@ -119,7 +124,15 @@ module mips(input clk, reset,
 		if(IF_en) begin
 			if(!stall && (ID_instr_reg[31:26] == 6'b100011) && (instr_in[20:16] == ID_instr_reg[20:16])) begin
 				stall <= 1'b1;
-				
+				stall_deasserted = 1'b1;
+			end else if(!stall && (ID_instr_reg[31:26] == 6'b101011) && (instr_in[31:26] == 6'b101011)) begin
+				stall <= 1'b1; //There's a delay in SW for some reason, can't for the life of me figure out where in main_memory.sv
+			end else if(!stall && (ID_instr_reg[31:26] == 6'b000000 && ID_instr_reg[5:0] == 6'b100001)) begin 
+				if(instr_in[15:11] == instr_in[20:16]) begin
+					stall <= 1'b1;
+				end else if(instr_in[15:11] == instr_in[25:21]) begin
+					stall <= 1'b1;
+				end
 			end else begin
 				stall <= 1'b0;
 				//ID_instr_reg <= instr_in;
@@ -191,6 +204,7 @@ module mips(input clk, reset,
 				//store word from rt to memory[base+offset] (pg 280)
 			    //address error exception if last two bits != 00
 				//[31:26]: 101011
+				//May need to stall for sequential stores, doesn;t seem like the correct values is getting clocked in by the memory
 				EX_wr_sel <= 5'bx; //writeback setup
 				rs_sel <= ID_instr_reg[25:21]; //base address
 				rd_sel <= ID_instr_reg[20:16]; //source word
@@ -299,7 +313,7 @@ module mips(input clk, reset,
 				EX_mem_en <= 1'b0;
 			end
 			6'b000000 : begin  //SPECIAL
-				case(instr_in[5:0])
+				case(ID_instr_reg[5:0])
 					6'b100011 : begin //SUBU
 						//SUBU sub unsigned
 						// 000000 rs [25:21] rt [20:16] rd [15:11] 00000 100011 (SUBU)
@@ -372,6 +386,7 @@ module mips(input clk, reset,
 						rs_sel <= ID_instr_reg[25:21]; //op1
 						rd_sel <= ID_instr_reg[20:16]; //op2
 						EX_wr_sel <= ID_instr_reg[15:11]; //destination
+
 						alu_en <= 1'b1;
 						EX_wb_en  <= 1'b1;
 						alu_op <= 5'b00011;
@@ -414,6 +429,25 @@ module mips(input clk, reset,
 			//run if alu_en is set
 			//adds alu_1 and alu_2
 			//output to alu_out
+			if(alu_op == 5'b10000) begin //Fo some reason isnt getting hit in the case statement No clue
+				if(EX_instr_reg[15]) begin
+					if(alu_rs < {16'hffff, EX_instr_reg[15:0]}) begin
+						ME_wr_reg <= 32'b1;
+						alu_out <= 32'b1;
+				end else begin
+					ME_wr_reg <= 32'b0;
+					alu_out <= 32'b0;
+				end	
+				end else begin
+					if(alu_rs < {16'h0000, EX_instr_reg[15:0]}) begin
+						ME_wr_reg <= 32'b1;
+						alu_out <= 32'b1;
+					end else begin
+						ME_wr_reg <= 32'b0;
+						alu_out <= 32'b0;
+					end	
+				end
+			end
 			if(alu_en == 1'b1) begin
 				case(alu_op)
 					5'b01000: begin //SLL
@@ -425,20 +459,21 @@ module mips(input clk, reset,
 						ME_wr_reg <= alu_rs * alu_rd;
 					end
 					5'b10000 : begin //SLTI
-							if(EX_instr_reg[15]) begin
-								if(alu_rs < {16'hffff, EX_instr_reg[15:0]}) begin
-									ME_wr_reg <= 32'b1;
-								end else begin
-									ME_wr_reg <= 32'b0;
-								end	
+						if(EX_instr_reg[15]) begin
+							if(alu_rs < {16'hffff, EX_instr_reg[15:0]}) begin
+								ME_wr_reg <= 32'b1;
+						end else begin
+							ME_wr_reg <= 32'b0;
+						end	
+						end else begin
+							if(alu_rs < {16'h0000, EX_instr_reg[15:0]}) begin
+								ME_wr_reg <= 32'b1;
+								alu_out <= 32'b1;
 							end else begin
-								if(alu_rs < {16'h0000, EX_instr_reg[15:0]}) begin
-									ME_wr_reg <= 32'b1;
-								end else begin
-									ME_wr_reg <= 32'b0;
-								end	
-							end
+								ME_wr_reg <= 32'b0;
+							end	
 						end
+					end
 					5'b00010: begin //SUBU
 						alu_out <= alu_rs - alu_rd;
 						ME_wr_reg <= alu_rs - alu_rd;
@@ -456,7 +491,13 @@ module mips(input clk, reset,
 								if (~EX_mem_en) begin
 									ME_wr_reg <= alu_rs + { 16'hffff, EX_instr_reg[15:0]};
 								end else begin
-									ME_wr_reg <= alu_rd;
+									if(ME_instr_reg[15:11] == ME_instr_reg[20:16]) begin
+										data_out <= ME_wr_reg;
+									end else if(ME_instr_reg[15:11] == ME_instr_reg[25:21]) begin
+										data_out <= ME_wr_reg;
+									end else begin
+										ME_wr_reg <= alu_rd;
+									end
 								end
 							end else begin
 								alu_out = alu_rs + { 16'h0000, EX_instr_reg[15:0]};
@@ -464,7 +505,13 @@ module mips(input clk, reset,
 								if (~EX_mem_en) begin
 									ME_wr_reg <= alu_rs + { 16'h0000, EX_instr_reg[15:0]};
 								end else begin
-									ME_wr_reg <= alu_rd;
+									if(ME_instr_reg[15:11] == ME_instr_reg[20:16]) begin
+										data_out <= ME_wr_reg;
+									end else if(ME_instr_reg[15:11] == ME_instr_reg[25:21]) begin
+										data_out <= ME_wr_reg;
+									end else begin
+										ME_wr_reg <= alu_rd;
+									end
 								end
 							end
 							if (EX_mem_en) begin
@@ -484,7 +531,7 @@ module mips(input clk, reset,
 						end	
 					end
 					5'b00100: begin //JUMP
-						pc <= rs;
+						pc <= alu_rs;
 					end	
 				endcase
 			end
@@ -535,8 +582,14 @@ module mips(input clk, reset,
 	
 	always @ (rs)
 	begin 
+		if(!stall && stall_deasserted) begin
+			alu_rs = rs;
+			stall_deasserted <= 1'b0;
+		end else
 		if(rs_sel == ME_wr_sel && WB_en) begin
 			alu_rs = ME_wr_reg;
+		end else if(WB_wr_sel == ME_wr_sel) begin
+			alu_rs = rs; // Forward the more recent data
 		end else if(rs_sel == WB_wr_sel) begin
 			alu_rs = WB_wr_reg_data;
 		end else begin
@@ -546,8 +599,13 @@ module mips(input clk, reset,
 	
 	always @ (rd)
 	begin
-		if(rd_sel == ME_wr_sel && WB_en) begin
+		if(!stall && stall_deasserted) begin
+			alu_rd = rd;
+			stall_deasserted <= 1'b0;
+		end else if(rd_sel == ME_wr_sel && WB_en) begin
 			alu_rd = ME_wr_reg;
+		end else if(WB_wr_sel == ME_wr_sel) begin
+			alu_rd = rd; // Forward the more recent data
 		end else if(rd_sel == WB_wr_sel) begin
 			alu_rd = WB_wr_reg_data;
 		end else begin
