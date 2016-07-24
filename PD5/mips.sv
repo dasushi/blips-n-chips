@@ -19,9 +19,7 @@ module mips(input clk, reset,
 				 WB_reg_wr_en,
 				 link_en,
 				 stall,
-				 stall_deasserted;			 
-	
-	logic hit_slti;
+				 stall_deasserted;	
 	
 	logic [4:0]	 EX_wr_sel,
 				 ME_wr_sel,
@@ -31,7 +29,7 @@ module mips(input clk, reset,
 				 alu_op;
 	
 	logic [31:0] pc; 			// program counter
-	logic [31:0] /*IF_IS_IMPLIED*/ ID_instr_reg, EX_instr_reg, ME_instr_reg, WB_instr_reg;
+	logic [31:0] /*IF_IS_IMPLIED*/ ID_instr_reg, EX_temp_instr_reg, EX_eff_instr_reg, ME_instr_reg, WB_instr_reg;
 	//Instruction propagation	
 	logic [31:0] rs, 			// register output 2
 				 rd, 			// destination register
@@ -72,8 +70,6 @@ module mips(input clk, reset,
 		link_en 	<= 1'b0;
 		stall 		<= 1'b0;
 		stall_deasserted <= 1'b0;
-		
-		hit_slti <= 1'b0;
 		
 		//WB_wr_sel 		<= 5'h1D; //sp_init = R29
 		//WB_wr_reg_data	<= sp_init;
@@ -122,13 +118,13 @@ module mips(input clk, reset,
 	always @ (posedge clk)
 	begin : IF
 		if(IF_en) begin
-			if(!stall && (ID_instr_reg[31:26] == 6'b100011) && (instr_in[20:16] == ID_instr_reg[20:16])) begin
+			/*if(!stall && (ID_instr_reg[31:26] == 6'b100011) && (instr_in[20:16] == ID_instr_reg[20:16])) begin
 				stall <= 1'b1;
 				stall_deasserted = 1'b1;
 			end else if(!stall && (ID_instr_reg[31:26] == 6'b101011) && (instr_in[31:26] == 6'b101011)) begin
 				stall <= 1'b1; //There's a delay in SW for some reason, can't for the life of me figure out where in main_memory.sv
 			end else if(!stall && (ID_instr_reg[31:26] == 6'b000000 && ID_instr_reg[5:0] == 6'b100001)) begin 
-				if(instr_in[15:11] == instr_in[20:16]) begin
+				if(instr_in[15:11] == instr_in[20:16]) begin //if destination = Rd or Rs
 					stall <= 1'b1;
 				end else if(instr_in[15:11] == instr_in[25:21]) begin
 					stall <= 1'b1;
@@ -137,7 +133,7 @@ module mips(input clk, reset,
 				stall <= 1'b0;
 				//ID_instr_reg <= instr_in;
 				//ID_en <= 1'b1;
-			end
+			end*/
 			if(!stall) begin
 				ID_instr_reg <= instr_in;
 				ID_en <= 1'b1;
@@ -149,16 +145,58 @@ module mips(input clk, reset,
 		end
 	end //IF
 	
+	
 	always @ (posedge clk) 
 	begin: ID
-		if(stall) begin
-			EX_instr_reg <= EX_instr_reg;
-		end else if(ID_en) begin
+		if(~(stall) && ((EX_temp_instr_reg[31:26] == 6'b100011) && (ID_instr_reg[20:16] == EX_temp_instr_reg[20:16]))) begin
+			//LW in EX with destination hazard colliding with ID stage
+			stall <= 1'b1;
+			EX_eff_instr_reg <= 32'h0000;
+			EX_temp_instr_reg <= ID_instr_reg; //hold onto temp register
+			
+		end else if(~(stall) && ((EX_temp_instr_reg[31:26] == 6'b101011) && (ID_instr_reg[31:26] == 6'b101011))) begin
+			//two consecutive SW, necessary due to main_memory.sv issues
+			stall <= 1'b1;
+			EX_eff_instr_reg <= 32'h0000;
+			EX_temp_instr_reg <= ID_instr_reg; 
+		/*end else if(!stall && (EX_temp_instr_reg[31:26] == 6'b000000 && EX_temp_instr_reg[5:0] == 6'b100001)) begin //stall for upcoming ADDU
+			if((ID_instr_reg[15:11] == ID_instr_reg[20:16])||(ID_instr_reg[15:11] == ID_instr_reg[25:21])) begin //if LW with destination = Rd or Rs
+				stall <= 1'b1;
+				EX_eff_instr_reg <= 32'h0000;
+				EX_temp_instr_reg <= ID_instr_reg; 
+			end*/
+		end else begin
+			if(stall) begin //if stalled last cycle, swap in temp
+				EX_eff_instr_reg <= EX_temp_instr_reg;
+				EX_temp_instr_reg <= ID_instr_reg;
+			end else begin //else use ID_instr_reg as usual
+				EX_eff_instr_reg <= ID_instr_reg;
+				EX_temp_instr_reg <= ID_instr_reg;
+			end
+			stall <= 1'b0;
+			//ID_instr_reg <= instr_in;
+			//ID_en <= 1'b1;
+		
+		//end else if(!stall && (ID_instr_reg[31:26] == 6'b101011) && (instr_in[31:26] == 6'b101011)) begin
+		//	stall <= 1'b1; //There's a delay in SW for some reason, can't for the life of me figure out where 
+		//					//in main_memory.sv
+		//	EX_eff_instr_reg <= 32'h0000;
+		//	EX_temp_instr_reg <= ID_instr_reg;
+		//end else if(!stall && (ID_instr_reg[31:26] == 6'b000000 && ID_instr_reg[5:0] == 6'b100001)) begin //stall for ADDU?
+		//	if(instr_in[15:11] == instr_in[20:16]) begin //if destination = Rd or Rs
+		//		stall <= 1'b1;
+		//	end else if(instr_in[15:11] == instr_in[25:21]) begin
+		//		stall <= 1'b1;
+		//	end
+		//if(stall) begin
+		//	EX_eff_instr_reg <= EX_temp_instr_reg;
+		//end else 
+		if(ID_en) begin
 		//decode current_instr to instruction (+ immediate)
 		//instructions we will need: 	
 		//addiu addu jr li lw move nop sw
 		//pages refer to pdf page # in MIPS ISA
-		EX_instr_reg <= ID_instr_reg;
+		//EX_temp_instr_reg <= ID_instr_reg;
 		case(ID_instr_reg[31:26])
 			6'b001001: begin
 				//ADDIU rt, rs, immediate
@@ -261,7 +299,7 @@ module mips(input clk, reset,
 					alu_en = 1'b1;
 					sign_extend_en = 1'b1;
 					alu_op <= 5'b10000;
-					if(EX_instr_reg[15]) begin
+					if(EX_eff_instr_reg[15]) begin
 						pc <= pc + {12'hfff, 2'b11, ID_instr_reg[15:0], 2'b00};
 					end else begin
 						pc <= pc + {12'h000, 2'b00, ID_instr_reg[15:0], 2'b00};
@@ -283,7 +321,7 @@ module mips(input clk, reset,
 					alu_en = 1'b1;
 					sign_extend_en = 1'b1;
 					alu_op <= 5'b10000;
-					if(EX_instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
+					if(EX_eff_instr_reg[15]) begin //Sign Extend should always be '1' don't explicitally check
 						pc <= pc + {12'hfff, 2'b11, ID_instr_reg[15:0], 2'b00};
 					end else begin
 						pc <= pc + {12'h000, 2'b00, ID_instr_reg[15:0], 2'b00};
@@ -413,13 +451,12 @@ module mips(input clk, reset,
 			end
 		endcase
 		EX_en <= 1'b1;
-		end else begin
-			if(IF_en) begin
-				WB_wr_sel		<= 5'h1E; //fp_init = R30
-				WB_wr_reg_data  <= sp_init;
-				WB_reg_wr_en    <= 1'b1;
-			end
+		end else if(IF_en) begin
+			WB_wr_sel	<= 5'h1E; //fp_init = R30
+			WB_wr_reg_data  <= sp_init;
+			WB_reg_wr_en    <= 1'b1;
 		end
+	end
 	end // ID
 	
 	always @ (posedge clk)
@@ -430,8 +467,8 @@ module mips(input clk, reset,
 			//adds alu_1 and alu_2
 			//output to alu_out
 			if(alu_op == 5'b10000) begin //Fo some reason isnt getting hit in the case statement No clue
-				if(EX_instr_reg[15]) begin
-					if(alu_rs < {16'hffff, EX_instr_reg[15:0]}) begin
+				if(EX_eff_instr_reg[15]) begin
+					if(alu_rs < {16'hffff, EX_eff_instr_reg[15:0]}) begin
 						ME_wr_reg <= 32'b1;
 						alu_out <= 32'b1;
 				end else begin
@@ -439,7 +476,7 @@ module mips(input clk, reset,
 					alu_out <= 32'b0;
 				end	
 				end else begin
-					if(alu_rs < {16'h0000, EX_instr_reg[15:0]}) begin
+					if(alu_rs < {16'h0000, EX_eff_instr_reg[15:0]}) begin
 						ME_wr_reg <= 32'b1;
 						alu_out <= 32'b1;
 					end else begin
@@ -451,22 +488,22 @@ module mips(input clk, reset,
 			if(alu_en == 1'b1) begin
 				case(alu_op)
 					5'b01000: begin //SLL
-						alu_out <= alu_rs << EX_instr_reg[10:6];
-						ME_wr_reg <= alu_rs << EX_instr_reg[10:6];
+						alu_out <= alu_rs << EX_eff_instr_reg[10:6];
+						ME_wr_reg <= alu_rs << EX_eff_instr_reg[10:6];
 					end
 					5'b11000: begin //MUL
 						alu_out <= alu_rs * alu_rd;
 						ME_wr_reg <= alu_rs * alu_rd;
 					end
 					5'b10000 : begin //SLTI
-						if(EX_instr_reg[15]) begin
-							if(alu_rs < {16'hffff, EX_instr_reg[15:0]}) begin
+						if(EX_eff_instr_reg[15]) begin
+							if(alu_rs < {16'hffff, EX_eff_instr_reg[15:0]}) begin
 								ME_wr_reg <= 32'b1;
 						end else begin
 							ME_wr_reg <= 32'b0;
 						end	
 						end else begin
-							if(alu_rs < {16'h0000, EX_instr_reg[15:0]}) begin
+							if(alu_rs < {16'h0000, EX_eff_instr_reg[15:0]}) begin
 								ME_wr_reg <= 32'b1;
 								alu_out <= 32'b1;
 							end else begin
@@ -485,11 +522,11 @@ module mips(input clk, reset,
 						end
 					5'b00001: begin //ADDIU
 						if(sign_extend_en) begin
-							if(EX_instr_reg[15]) begin
-								alu_out  = alu_rs + { 16'hffff, EX_instr_reg[15:0]};
+							if(EX_eff_instr_reg[15]) begin
+								alu_out  = alu_rs + { 16'hffff, EX_eff_instr_reg[15:0]};
 								data_out = alu_rd;
 								if (~EX_mem_en) begin
-									ME_wr_reg <= alu_rs + { 16'hffff, EX_instr_reg[15:0]};
+									ME_wr_reg <= alu_rs + { 16'hffff, EX_eff_instr_reg[15:0]};
 								end else begin
 									if(ME_instr_reg[15:11] == ME_instr_reg[20:16]) begin
 										data_out <= ME_wr_reg;
@@ -500,10 +537,10 @@ module mips(input clk, reset,
 									end
 								end
 							end else begin
-								alu_out = alu_rs + { 16'h0000, EX_instr_reg[15:0]};
+								alu_out = alu_rs + { 16'h0000, EX_eff_instr_reg[15:0]};
 								data_out = alu_rd;
 								if (~EX_mem_en) begin
-									ME_wr_reg <= alu_rs + { 16'h0000, EX_instr_reg[15:0]};
+									ME_wr_reg <= alu_rs + { 16'h0000, EX_eff_instr_reg[15:0]};
 								end else begin
 									if(ME_instr_reg[15:11] == ME_instr_reg[20:16]) begin
 										data_out <= ME_wr_reg;
@@ -515,7 +552,7 @@ module mips(input clk, reset,
 								end
 							end
 							if (EX_mem_en) begin
-								if(EX_instr_reg[29]) begin //TODO: Add write flag to avoid holding this reg
+								if(EX_eff_instr_reg[29]) begin //TODO: Add write flag to avoid holding this reg
 									data_addr = alu_out;
 									data_rd_wr <= 1'b0;
 								end else begin
@@ -535,7 +572,7 @@ module mips(input clk, reset,
 					end	
 				endcase
 			end
-			if(~(ID_instr_reg[31:26] == 6'b000100) && (alu_op != 5'b00100) && !stall) begin
+			if((ID_instr_reg[31:26] != 6'b000100) && (alu_op != 5'b00100) && ~(stall) && ((EX_eff_instr_reg) || (alu_op == 5'b01000))) begin
 				// branch delay
 				pc <= pc + 4;//increment PC after done with instr_in
 			end 
@@ -543,7 +580,7 @@ module mips(input clk, reset,
 			ME_mem_en <= EX_mem_en;
 			ME_reg_wr_en <= EX_reg_wr_en;
 			ME_wr_sel <= EX_wr_sel; // This isn't the case for ADDU
-			ME_instr_reg <= EX_instr_reg;
+			ME_instr_reg <= EX_eff_instr_reg;
 			ME_en <= 1'b1;
 		end
 	end //EX
